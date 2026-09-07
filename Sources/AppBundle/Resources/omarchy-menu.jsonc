@@ -1,4 +1,4 @@
-// AeroSpace Omarchy — shipped menu defaults (macOS port of Omarchy's omarchy-menu.jsonc).
+// macarchy — shipped menu defaults (macOS port of Omarchy's omarchy-menu.jsonc).
 // Format: flat JSON object whose keys ARE dotted ids. Whole-line // comments and
 // trailing commas are allowed; inline trailing comments are NOT (same dialect as Omarchy).
 // Overlay your own entries in ~/.config/aerospace/omarchy/menu.jsonc (same format):

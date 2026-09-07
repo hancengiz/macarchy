@@ -1,0 +1,63 @@
+name: macarchy-release
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: build-release-app
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests
+        run: swift test
+
+      - name: Build release app
+        run: |
+          swift build -c release -Xswiftc -DOMARCHY
+          BIN="$(swift build -c release --show-bin-path)"
+          DEST="macarchy.app/Contents"
+          mkdir -p "$DEST/MacOS" "$DEST/Resources" "$DEST/Helpers"
+          # Default macOS volumes are case-insensitive: the app and CLI binaries collide in one dir.
+          cp "$BIN/AeroSpaceApp" "$DEST/MacOS/AeroSpace"
+          cp "$BIN/aerospace" "$DEST/Helpers/aerospace"
+          cp docs/config-examples/default-config.toml "$DEST/Resources/default-config.toml"
+          for bundle in "$BIN"/*.bundle; do
+            [ -e "$bundle" ] && cp -R "$bundle" "$DEST/Resources/"
+          done
+          cat > "$DEST/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key><string>AeroSpace</string>
+            <key>CFBundleIdentifier</key><string>com.hancengiz.macarchy</string>
+            <key>CFBundleName</key><string>macarchy</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>0.22.0</string>
+            <key>CFBundleVersion</key><string>1</string>
+            <key>LSMinimumSystemVersion</key><string>13.0</string>
+            <key>LSUIElement</key><true/>
+            <key>NSAppleEventsUsageDescription</key>
+            <string>Launch applications from your configured shortcuts.</string>
+          </dict>
+          </plist>
+          PLIST
+          codesign --force --deep --sign - macarchy.app
+          ditto -c -k --keepParent macarchy.app macarchy.app.zip
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macarchy.app
+          path: macarchy.app.zip
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: macarchy.app.zip

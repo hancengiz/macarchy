@@ -2,10 +2,18 @@
 
 Last updated: 2026-09-07, Europe/Istanbul.
 
-## 1. Read This First
+## 0. Rebrand (2026-09-07, latest)
 
-This document is the continuation brief for the next agent. The user requested
-documentation and handoff, not further implementation in this turn.
+The project is now **macarchy** ("Omarchy-like tiling manager for macOS"), a
+fork of AeroSpace (MIT, © Nikita Bobko; LICENSE.txt retained). App bundle:
+`~/Applications/macarchy.app`, identifier `com.hancengiz.macarchy`, GitHub
+repo `hancengiz/macarchy`. The old `AeroSpace-Omarchy.app` is superseded —
+delete it and re-grant Accessibility to macarchy after the first launch.
+User guide: `README.md`; known issues incl. Option+arrow text-input
+conflicts: `known_issues.md`. CI: `.github/workflows/macarchy-release.yml`
+builds the app on every push to main and publishes releases on `v*` tags.
+
+## 1. Read This First
 
 **The work is not finished.** The window-manager features and a system-mode HUD
 are installed. The user rejected the installed launcher and the oversized

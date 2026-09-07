@@ -150,7 +150,7 @@ public struct Message: Hashable, Equatable {
     init(
         type: MessageType = .config,
         title: String = aeroSpaceAppName,
-        description: String = "AeroSpace Config Diagnostics",
+        description: String = "macarchy Config Diagnostics",
         body: String,
         containsWarnings: Bool,
     ) {

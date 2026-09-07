@@ -106,7 +106,7 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
 
         if viewModel.axPermissionStatus == .granted {
             if config.modes[omarchyMenuMode] != nil {
-                items.append(action("Open Omarchy Menu...") {
+                items.append(action("Open macarchy Menu...") {
                     Task { await activateMode_nonCancellable(omarchyMenuMode) }
                 })
             }
@@ -196,7 +196,7 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
                 }
             })
         } else {
-            items.append(header("AeroSpace requires accessibility permission to move windows"))
+            items.append(header("macarchy requires accessibility permission to move windows"))
         }
 
         items.append(.separator())

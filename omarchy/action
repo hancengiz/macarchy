@@ -6,7 +6,7 @@ omarchy_dir="$(cd "$(dirname "$0")" && pwd)"
 notify() {
     /usr/bin/osascript - "$1" <<'OSA'
 on run argv
-    display notification (item 1 of argv) with title "AeroSpace Omarchy"
+    display notification (item 1 of argv) with title "macarchy"
 end run
 OSA
 }
@@ -25,7 +25,7 @@ open_app() {
     # Activating a running app focuses its existing window first, which would make
     # AeroSpace adopt the new window into the OLD window's workspace. Remember the
     # focused workspace before activating and pull the new window back into it.
-    local cli="$HOME/Applications/AeroSpace-Omarchy.app/Contents/Helpers/aerospace"
+    local cli="$HOME/Applications/macarchy.app/Contents/Helpers/aerospace"
     local ws
     ws="$("$cli" list-workspaces --focused 2>/dev/null)" || ws=""
     local before
@@ -67,7 +67,7 @@ case "${1:-}" in
         exec borders style=round width=3.0 hidpi=on ax_focus=off \
             'active_color=gradient(top_left=0xff33ccff,bottom_right=0xff00ff99)' \
             inactive_color=0xaa595959 background_color=0x00000000 \
-            'blacklist=AeroSpace Omarchy,AeroSpace'
+            'blacklist=macarchy,AeroSpace'
         ;;
     terminal) open_app Ghostty iTerm WezTerm Terminal ;;
     browser) /usr/bin/open https://www.google.com ;;

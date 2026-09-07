@@ -17,7 +17,7 @@ final class OmarchyMenuPanel: NSPanelHud, NSWindowDelegate {
 
     override private init() {
         super.init()
-        title = "Omarchy"
+        title = "macarchy"
         identifier = NSUserInterfaceItemIdentifier("omarchy.launcher")
         isOpaque = false
         delegate = self

@@ -62,7 +62,7 @@ def profile(stock=False, leader=False):
 
 def hotkeys(text):
     data = tomllib.loads(text)
-    lines = ["AEROSPACE / OMARCHY", "", "Super = Option (alt); ctrl = Control. Command is reserved for apps.",
+    lines = ["MACARCHY", "", "Super = Option (alt); ctrl = Control. Command is reserved for apps.",
              "Command+T/W/L/F/S/Q/Tab and Command+Shift shortcuts remain native.",
              "Left/Right: windows in this workspace. Tab: next numbered workspace.", ""]
     for mode, settings in data["mode"].items():
@@ -82,7 +82,7 @@ def build_app():
     run(bash, str(ROOT / "generate.sh"), "--ignore-xcodeproj", "--build-version", "0.22.0-Omarchy", cwd=ROOT)
     run("swift", "build", "-c", "release", "-Xswiftc", "-DOMARCHY", cwd=ROOT)
     bin_dir = Path(subprocess.check_output(["swift", "build", "-c", "release", "--show-bin-path"], cwd=ROOT, text=True).strip())
-    destination = ROOT / ".local" / "AeroSpace-Omarchy.app"
+    destination = ROOT / ".local" / "macarchy.app"
     contents = destination / "Contents"
     (contents / "MacOS").mkdir(parents=True, exist_ok=True)
     (contents / "Resources").mkdir(exist_ok=True)
@@ -94,8 +94,8 @@ def build_app():
     for resource in bin_dir.glob("*.bundle"):
         shutil.copytree(resource, contents / "Resources" / resource.name, dirs_exist_ok=True)
     info = {
-        "CFBundleExecutable": "AeroSpace", "CFBundleIdentifier": "com.hancengiz.aerospace",
-        "CFBundleName": "AeroSpace Omarchy", "CFBundlePackageType": "APPL",
+        "CFBundleExecutable": "AeroSpace", "CFBundleIdentifier": "com.hancengiz.macarchy",
+        "CFBundleName": "macarchy", "CFBundlePackageType": "APPL",
         "CFBundleShortVersionString": "0.22.0", "CFBundleVersion": "1",
         "LSMinimumSystemVersion": "13.0", "LSUIElement": True,
         "NSAppleEventsUsageDescription": "Launch applications from your configured shortcuts.",
@@ -146,7 +146,7 @@ def main():
     app = build_app() if args.build or args.build_only else None
     if args.build_only:
         return
-    if args.profile_only and not (home / "Applications/AeroSpace-Omarchy.app/Contents/Helpers/aerospace").is_file():
+    if args.profile_only and not (home / "Applications/macarchy.app/Contents/Helpers/aerospace").is_file():
         parser.error("The fork is not installed yet. Use --build first")
     if not args.stock and not app and not args.profile_only:
         parser.error("Use --build for the fork, --profile-only to update it, or --stock for upstream AeroSpace")
@@ -178,7 +178,7 @@ def main():
         if installed.exists():
             shutil.copytree(installed, backup / app.name)
         shutil.copytree(app, installed, dirs_exist_ok=True)
-        run("defaults", "write", "com.hancengiz.aerospace", "displayStyle", "-string", "i3Ordered")
+        run("defaults", "write", "com.hancengiz.macarchy", "displayStyle", "-string", "i3Ordered")
         print(f"App: {installed}")
         print("Quit the existing AeroSpace, then open this app and grant Accessibility access.")
         print(f"Fork CLI: {installed}/Contents/Helpers/aerospace")

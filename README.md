@@ -1,176 +1,89 @@
-# AeroSpace Beta [![Build](https://github.com/nikitabobko/AeroSpace/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/nikitabobko/AeroSpace/actions/workflows/build.yml)
+# macarchy
 
-<img src="./resources/Assets.xcassets/AppIcon.appiconset/icon.png" width="40%" align="right">
+**Omarchy-like tiling window manager for macOS.**
 
-AeroSpace is an i3-like tiling window manager for macOS
+macarchy is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace) by
+[Nikita Bobko](https://github.com/nikitabobko) — a hybrid manual tiling window
+manager built on macOS Accessibility — reimagined to feel like
+[Omarchy](https://omarchy.org) (the Hyprland-based Linux desktop by
+[DHH](https://github.com/dhh)): scrolling columns, Option-as-Super shortcuts,
+a Spotlight-like customizable menu, and small desktop notifications.
 
-This fork adds [Omarchy-style scrolling columns and Option-key shortcuts](./omarchy/README.md),
-modifier mouse move/resize, native resize adoption, and shortcut conflict warnings.
-See the fork guide for installation; the Homebrew instructions below install upstream.
+This project is independently maintained and is not affiliated with either
+upstream project. All credit for the window-management engine goes to
+AeroSpace; the desktop experience design follows Omarchy.
 
-Videos:
-- [YouTube 91 sec Demo](https://www.youtube.com/watch?v=UOl7ErqWbrk)
-- [YouTube Guide by Josean Martinez](https://www.youtube.com/watch?v=-FoWClVHG5g)
+## Features
 
-Docs:
-- [AeroSpace Guide](https://nikitabobko.github.io/AeroSpace/guide)
-- [AeroSpace Commands](https://nikitabobko.github.io/AeroSpace/commands)
-- [AeroSpace Goodies](https://nikitabobko.github.io/AeroSpace/goodies)
+- **Scrolling columns** — horizontal Hyprland-style layout: each workspace is
+  a strip of full-height columns; neighbors stay partially visible at the
+  edges; Option+L toggles between scrolling and tiling.
+- **Super is Option** — Omarchy-style chords with Command left entirely to
+  your applications. Chrome's ⌘T/⌘L, Save, Find, and friends stay native.
+- **Mouse gestures** — Option+drag moves/swaps, Option+right-drag resizes,
+  native edge resizing is adopted into the layout, and parking the pointer at
+  a dead-end screen edge focuses the next window that side.
+- **System mode HUD** — Option+Shift+Esc overlays a click-through cheat sheet
+  of one-key system actions (Bluetooth, Displays, Screenshot, Lock…).
+- **The menu (Option+Space)** — a native Spotlight-like launcher driven by an
+  Omarchy-style JSONC menu: nested submenus, dotted ids, per-field overrides,
+  searchable installed apps with real icons, bash `when/checked/disabled`
+  guards, and a **Keybindings** section that can run any live shortcut.
+  Customize `~/.config/aerospace/omarchy/menu.jsonc`; edits apply live.
+- **Desktop notifications** — compact panels under the workspace indicators
+  for shortcut conflicts, gesture failures, and config errors.
+- **Hyprland-style layering** — floating windows stay above the tiling layer.
 
-## Key features
+## Install
 
-- Tiling window manager based on a [tree paradigm](https://nikitabobko.github.io/AeroSpace/guide#tree)
-- [i3](https://i3wm.org/) inspired
-- Fast workspaces switching without animations and without the necessity to disable SIP
-- AeroSpace employs its [own emulation of virtual workspaces](https://nikitabobko.github.io/AeroSpace/guide#emulation-of-virtual-workspaces) instead of relying on native macOS Spaces due to [their considerable limitations](https://nikitabobko.github.io/AeroSpace/guide#emulation-of-virtual-workspaces)
-- Plain text configuration (dotfiles friendly). See: [default-config.toml](https://nikitabobko.github.io/AeroSpace/guide#default-config)
-- CLI first (manpages and shell completion included)
-- Doesn't require disabling SIP (System Integrity Protection)
-- [Proper multi-monitor support](https://nikitabobko.github.io/AeroSpace/guide#multiple-monitors) (i3-like paradigm)
+Requires macOS 13+, full Xcode (for XCTest), Python 3.11+, and Bash 5
+(`brew install bash`).
 
-## Installation
-
-Install via [Homebrew](https://brew.sh/) to get autoupdates (Preferred)
-
+```sh
+env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 omarchy/install.py --build
 ```
-brew install --cask nikitabobko/tap/aerospace
-```
 
-In multi-monitor setup please make sure that monitors [are properly arranged](https://nikitabobko.github.io/AeroSpace/guide#proper-monitor-arrangement).
+This builds `~/Applications/macarchy.app`, installs the profile to
+`~/.aerospace.toml`, the helper to `~/.config/aerospace/omarchy/`, and backs
+up anything it replaces under `~/.config/aerospace/backups/`. Enable
+**macarchy** under System Settings → Privacy & Security → Accessibility.
 
-Other installation options: https://nikitabobko.github.io/AeroSpace/guide#installation
+- Local builds are ad-hoc signed: every rebuild changes the signature and
+  macOS may drop the Accessibility grant — re-enable it after updates.
+- The Homebrew AeroSpace app is kept for rollback; never run two window
+  managers at once.
+- `--stock` installs shortcuts for upstream AeroSpace without fork features;
+  `--leader` uses an F18 leader key for VoiceOver users; `--restore` rolls back.
 
-> [!NOTE]
-> By using AeroSpace, you acknowledge that it's not [notarized](https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution).
->
-> Notarization is a "security" feature by Apple.
-> You send binaries to Apple, and they either approve them or not.
-> In reality, notarization is about building binaries the way Apple likes it.
->
-> I don't have anything against notarization as a concept.
-> I specifically don't like the way Apple does notarization.
-> I don't have time to deal with Apple.
->
-> [Homebrew installation script](https://github.com/nikitabobko/homebrew-tap/blob/main/Casks/aerospace.rb) is configured to
-> automatically delete `com.apple.quarantine` attribute, that's why the app should work out of the box, without any warnings that
-> "Apple cannot check AeroSpace for malicious software"
+## Daily shortcuts
 
-## Community, discussions, issues
+| Keys | Action |
+| --- | --- |
+| Option+←/→ | Focus previous/next column |
+| Option+Shift+arrows | Swap windows |
+| Option+L | Scrolling ⇄ tiling |
+| Option+T | Float / tile |
+| Option+- / = | Resize column (Control for fine steps) |
+| Option+R | Resize mode |
+| Option+1…0 | Workspaces (Shift moves window along) |
+| Option+Tab | Next workspace |
+| Option+S | Scratch workspace |
+| Option+Enter / Shift+Enter | Terminal / browser (new window) |
+| Option+Space | The menu |
+| Option+Shift+Esc | System mode |
+| Option+; | Pass-through mode (suspend all bindings) |
+| Option+Control+R | Reload config |
 
-AeroSpace project doesn't accept Issues directly - we ask you to create a [Discussion](https://github.com/nikitabobko/AeroSpace/discussions) first.
-Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for more details.
-
-Community discussions happen at GitHub Discussions.
-There you can discuss bugs, propose new features, ask your questions, show off your setup, or just chat.
-
-There are 7 channels:
--   [#all](https://github.com/nikitabobko/AeroSpace/discussions).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions.atom?discussions_q=sort%3Adate_created).
-    Feed with all discussions.
--   [#announcements](https://github.com/nikitabobko/AeroSpace/discussions/categories/announcements).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions/categories/announcements.atom?discussions_q=category%3Aannouncements+sort%3Adate_created).
-    Only maintainers can post here.
-    Highly moderated traffic.
--   [#announcements-releases](https://github.com/nikitabobko/AeroSpace/discussions/categories/announcements-releases).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions/categories/announcements-releases.atom?discussions_q=category%3Aannouncements-releases+sort%3Adate_created).
-    Announcements about non-patch releases.
-    Only maintainers can post here.
--   [#feature-ideas](https://github.com/nikitabobko/AeroSpace/discussions/categories/feature-ideas).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions/categories/feature-ideas.atom?discussions_q=category%3Afeature-ideas+sort%3Adate_created).
--   [#general](https://github.com/nikitabobko/AeroSpace/discussions/categories/general).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions/categories/general.atom?discussions_q=sort%3Adate_created+category%3Ageneral).
--   [#potential-bugs](https://github.com/nikitabobko/AeroSpace/discussions/categories/potential-bugs).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions/categories/potential-bugs.atom?discussions_q=category%3Apotential-bugs+sort%3Adate_created).
-    If you think that you have encountered a bug, you can discuss your bugs here.
--   [#questions-and-answers](https://github.com/nikitabobko/AeroSpace/discussions/categories/questions-and-answers).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions/categories/questions-and-answers.atom?discussions_q=category%3Aquestions-and-answers+sort%3Adate_created).
-    Everyone is welcome to ask questions.
-    Everyone is encouraged to answer other people's questions.
-
-## Project status
-
-Public Beta. AeroSpace can be used as a daily driver, but expect breaking changes until 1.0 is reached.
-
-What stops us from 1.0 release:
-- [x] https://github.com/nikitabobko/AeroSpace/issues/131 Performance. Implement thread-per-application to circumvent macOS blocking AX API.
-- [ ] https://github.com/nikitabobko/AeroSpace/issues/1215 _Big refactoring_. Rewrite mutable double-linked core tree data structure to immutable single-linked persistent tree.
-  Important for: stability and potential performance
-  - [ ] https://github.com/nikitabobko/AeroSpace/issues/1216 The big refactoring will help us to fix stability issue that windows may randomly jump to the focused workspace
-  - [ ] https://github.com/nikitabobko/AeroSpace/issues/68 The big refactoring will help us to support macOS native tabs
-- [x] https://github.com/nikitabobko/AeroSpace/issues/278 Implement shell-like combinators.
-  Ignore a lot of crazy fuss in the issue,
-  We are most probably going with the minimal approach to only introduce common shell-combinators: `||`, `&&`, `;` and `eval` command to send multiple commands in one go.
-- [ ] https://github.com/nikitabobko/AeroSpace/issues/1012 Investigate a possibility to use `CGEvent.tapCreate` API for global hotkeys
-  - [ ] https://github.com/nikitabobko/AeroSpace/issues/28 Maybe it will allow to distinguish left and right modifiers. Maybe not
-
-Big and important issues which will go after 1.0 release:
-- [ ] https://github.com/nikitabobko/AeroSpace/issues/2 sticky windows
-- [ ] https://github.com/nikitabobko/AeroSpace/issues/260 Dynamic TWM
+See [known_issues.md](known_issues.md) for text-input conflicts like
+Option+arrows word navigation.
 
 ## Development
 
-A notes on how to setup the project, build it, how to run the tests, etc. can be found here: [dev-docs/development.md](./dev-docs/development.md)
-
-## Project values
-
-**Values**
-- AeroSpace is targeted at advanced users and developers
-- Keyboard centric
-- Breaking changes (configuration files, CLI, behavior) are avoided as much as possible, but it must not let the software stagnate.
-  Thus breaking changes can happen, but with careful considerations and helpful message.
-  [Semver](https://semver.org/) major version is bumped in case of a breaking change (It's all guaranteed once AeroSpace reaches 1.0 version, until then breaking changes just happen)
-- AeroSpace doesn't use GUI, unless necessarily
-  - AeroSpace will never provide a GUI for configuration.
-    For advanced users, it's easier to edit a configuration file in text editor rather than navigating through checkboxes in GUI.
-  - Status menu icon is ok, because visual feedback is needed
-- Provide _practical_ features. Fancy appearance features are not _practical_ (e.g. window borders, transparency, animations, etc.)
-- "dark magic" (aka "private APIs", "code injections", etc.) must be avoided as much as possible
-  - Right now, AeroSpace uses only a single private API to get window ID of accessibility object `_AXUIElementGetWindow`.
-    Everything else is [macOS public accessibility API](https://developer.apple.com/documentation/applicationservices/axuielement_h).
-  - AeroSpace will never require you to disable SIP (System Integrity Protection).
-  - The goal is to make AeroSpace easily maintainable, and resistant to macOS updates.
-
-**Non Values**
-- Play nicely with existing macOS features.
-  If limitations are imposed then AeroSpace won't play nicely with existing macOS features
-  (For example, AeroSpace doesn't acknowledge the existence of macOS Spaces, and it uses [emulation of its own workspaces](https://nikitabobko.github.io/AeroSpace/guide#emulation-of-virtual-workspaces))
-- Ricing.
-  AeroSpace provides only a very minimal support for ricing - gaps and a few callbacks for integrations with bars.
-  The current maintainer doesn't care about ricing.
-  Ricing issues are not a priority, and they are mostly ignored.
-  The ricing stance can change only with the appearance of more maintainers.
-
-## macOS compatibility table
-
-* AeroSpace binary runs on: macOS 13+
-* AeroSpace debug build from sources is supported on: macOS 14+
-* AeroSpace release build from sources is supported on: macOS 15+ (Requires Xcode 26+)
-
-## Sponsorship
-
-AeroSpace is developed and maintained in my free time.
-If you find it useful, [consider sponsoring](https://github.com/sponsors/nikitabobko#sponsors).
-
-## People who have write access
-
-In alphabetical order:
-
-- [@mobile-ar](https://github.com/mobile-ar)
-- [@nikitabobko](https://github.com/nikitabobko)
-- [@rickyz](https://github.com/rickyz)
-
-## Tip of the day
-
-```bash
-defaults write -g NSWindowShouldDragOnGesture -bool true
+```sh
+env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
+python3 -m unittest discover -s omarchy -p 'test_*.py'
+bash -n omarchy/action
 ```
 
-Now, you can move windows by holding `ctrl`+`cmd` and dragging any part of the window (not necessarily the window title)
-
-Source: [reddit](https://www.reddit.com/r/MacOS/comments/k6hiwk/keyboard_modifier_to_simplify_click_drag_of/)
-
-## Related projects
-
-- [Amethyst](https://github.com/ianyh/Amethyst) - tiling window manager à la xmonad
-- [InstantSpaceSwitcher](https://github.com/jurplel/InstantSpaceSwitcher) - Instant space switching by synthesizing trackpad gesture with an artificially high velocity
-- [yabai](https://github.com/koekeishiya/yabai) - a tiling window manager for macOS based on binary space partitioning
+The full product brief and continuation notes live in
+[docs/omarchy-on-macos.md](docs/omarchy-on-macos.md).
