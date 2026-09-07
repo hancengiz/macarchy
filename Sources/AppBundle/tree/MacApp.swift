@@ -147,6 +147,15 @@ final class MacApp: AbstractApp {
         }
     }
 
+    /// Raises a window without stealing focus; used to keep floating windows
+    /// above the tiling layer (Hyprland semantics).
+    @MainActor func nativeRaise(_ windowId: UInt32) {
+        if serverArgs.isReadOnly { return }
+        withWindowAsync(windowId, .cancellable) { window, _ in
+            AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+        }
+    }
+
     func setAxFrame(_ windowId: UInt32, _ topLeft: CGPoint?, _ size: CGSize?) {
         setFrameJobs.removeValue(forKey: windowId)?.cancel()
         setFrameJobs[windowId] = withWindowAsync(windowId, .cancellable) { [axApp] window, job in

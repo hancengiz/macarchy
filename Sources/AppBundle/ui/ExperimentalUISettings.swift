@@ -36,35 +36,3 @@ enum MenuBarStyle: String, CaseIterable, Identifiable, Equatable, Hashable {
 enum ExperimentalUISettingsItems: String {
     case displayStyle
 }
-
-@MainActor
-func getExperimentalUISettingsMenu(viewModel: TrayMenuModel) -> some View {
-    let color = AppearanceTheme.current == .dark ? Color.white : Color.black
-    return Menu {
-        Text("Menu bar style (macOS 14 or later):")
-        ForEach(MenuBarStyle.allCases, id: \.id) { style in
-            MenuBarStyleButton(style: style, color: color).environmentObject(viewModel)
-        }
-    } label: {
-        Text("Experimental UI Settings (No stability guarantees)")
-    }
-}
-
-@MainActor
-struct MenuBarStyleButton: View {
-    @EnvironmentObject var viewModel: TrayMenuModel
-    let style: MenuBarStyle
-    let color: Color
-
-    var body: some View {
-        Button {
-            viewModel.experimentalUISettings.displayStyle = style
-        } label: {
-            Toggle(isOn: .constant(viewModel.experimentalUISettings.displayStyle == style)) {
-                MenuBarLabel(style: style, color: color)
-                    .environmentObject(viewModel)
-                Text(" -  " + style.title)
-            }
-        }
-    }
-}

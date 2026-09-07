@@ -7,6 +7,7 @@ import Foundation
         initTerminationHandler()
         unsafe _isCli = false
         initServerArgs()
+        initTrayStatusItem()
         await waitForAccessibilityPermission_nonCancellable()
         if isDebug {
             await toggleReleaseServerIfDebug(.off)
@@ -50,6 +51,11 @@ import Foundation
 private func smartLayoutAtStartup() {
     let workspace = focus.workspace
     let root = workspace.rootTilingContainer
+    if config.defaultRootContainerLayout == .scrolling {
+        root.layout = .scrolling
+        root.changeOrientation(.h)
+        return
+    }
     switch root.children.count <= 3 {
         case true: root.layout = .tiles
         case false: root.layout = .accordion

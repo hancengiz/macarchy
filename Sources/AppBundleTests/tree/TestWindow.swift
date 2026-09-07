@@ -42,4 +42,10 @@ final class TestWindow: Window, CustomStringConvertible {
     }
 
     override func isMacosFullscreen(_ cm: CancellationMode) async throws -> Bool { isMacosFullscreenForTest }
+
+    override func setAxFrame(_ topLeft: CGPoint?, _ size: CGSize?) {
+        let point = topLeft ?? _rect?.topLeftCorner ?? .zero
+        let size = size ?? _rect?.size ?? .zero
+        _rect = Rect(topLeftX: point.x, topLeftY: point.y, width: size.width, height: size.height)
+    }
 }

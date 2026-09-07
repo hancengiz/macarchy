@@ -236,6 +236,7 @@ func unknownInterpolationVariable(variable: String, _ obj: AeroObj) -> String {
 
 private func toLayoutString(tc: TilingContainer) -> String {
     switch (tc.layout, tc.orientation) {
+        case (.scrolling, _): return LayoutCmdArgs.LayoutDescription.scrolling.rawValue
         case (.tiles, .h): return LayoutCmdArgs.LayoutDescription.h_tiles.rawValue
         case (.tiles, .v): return LayoutCmdArgs.LayoutDescription.v_tiles.rawValue
         case (.accordion, .h): return LayoutCmdArgs.LayoutDescription.h_accordion.rawValue

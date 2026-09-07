@@ -9,7 +9,7 @@ struct ResizeCommand: Command {
         guard let target = args.resolveTargetOrReportError(env, io) else { return .fail }
 
         let candidates = target.windowOrNil?.parentsWithSelf
-            .filter { ($0.parent as? TilingContainer)?.layout == .tiles }
+            .filter { ($0.parent as? TilingContainer).map { $0.layout == .tiles || $0.layout == .scrolling } == true }
             ?? []
 
         let orientation: Orientation?
@@ -38,6 +38,17 @@ struct ResizeCommand: Command {
         }
         guard let orientation else { return .fail }
         guard let node else { return .fail }
+        if parent.layout == .scrolling {
+            guard let extent = parent.lastAppliedLayoutPhysicalRect?.getDimension(orientation) else { return .fail }
+            let current = node.scrollingSize ?? extent * CGFloat(config.scrollingColumnWidth) / 100
+            let size: CGFloat = switch args.units.val {
+                case .set(let unit): CGFloat(unit)
+                case .add(let unit): current + CGFloat(unit)
+                case .subtract(let unit): current - CGFloat(unit)
+            }
+            node.scrollingSize = size.coerce(in: min(100, extent) ... extent)
+            return .succ
+        }
         let diff: CGFloat = switch args.units.val {
             case .set(let unit): CGFloat(unit) - node.getWeight(orientation)
             case .add(let unit): CGFloat(unit)

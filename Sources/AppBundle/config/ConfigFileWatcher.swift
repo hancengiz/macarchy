@@ -1,7 +1,7 @@
 import Common
 import Foundation
 
-private struct ConfigFileWatcher: ~Copyable {
+struct ConfigFileWatcher: ~Copyable {
     private let source: DispatchSourceFileSystemObject
     private let fd: Int32
 

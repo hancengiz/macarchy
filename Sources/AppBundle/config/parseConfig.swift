@@ -133,6 +133,7 @@ private let configParser: [String: any ParserProtocol<Config>] = [
 
     "on-focus-changed": Parser(\.onFocusChanged, parseShellOfCommandsForConfig),
     "on-mode-changed": Parser(\.onModeChanged, parseShellOfCommandsForConfig),
+    "show-system-mode-overlay": Parser(\.showSystemModeOverlay, parseBool),
     "on-focused-monitor-changed": Parser(\.onFocusedMonitorChanged, parseShellOfCommandsForConfig),
     // "on-focused-workspace-changed": Parser(\.onFocusedWorkspaceChanged, { parseCommandOrCommands($0).toParsedConfig($1) }),
 
@@ -146,6 +147,12 @@ private let configParser: [String: any ParserProtocol<Config>] = [
     "auto-reload-config": Parser(\.autoReloadConfig, parseBool),
     "automatically-unhide-macos-hidden-apps": Parser(\.automaticallyUnhideMacosHiddenApps, parseBool),
     "accordion-padding": Parser(\.accordionPadding, parseInt),
+    "scrolling-column-width": Parser(\.scrollingColumnWidth, parseScrollingColumnWidth),
+    "mouse-modifier": Parser(\.mouseModifier, parseMouseModifier),
+    "adopt-native-window-resize": Parser(\.adoptNativeWindowResize, parseBool),
+    "enable-mouse-edge-focus": Parser(\.enableMouseEdgeFocus, parseBool),
+    "keep-floating-windows-on-top": Parser(\.keepFloatingWindowsOnTop, parseBool),
+    "warn-about-shortcut-conflicts": Parser(\.warnAboutShortcutConflicts, parseBool),
     persistentWorkspacesKey: Parser(\.persistentWorkspaces, parsePersistentWorkspaces),
     "exec-on-workspace-change": Parser(\.execOnWorkspaceChange, parseArrayOfStrings),
     "exec": Parser(\.execConfig, parseExecConfig),
@@ -327,6 +334,17 @@ func parseConfigVersion(_ raw: OrderedJson, _ backtrace: ConfigBacktrace) -> Res
 
 func parseInt(_ raw: OrderedJson, _ backtrace: ConfigBacktrace) -> ResOrConfigParseDiagnostic<Int> {
     raw.asIntOrNil.toResult(expectedActualTypeDiagnostic(expected: .int, actual: raw.tomlType, backtrace))
+}
+
+private func parseScrollingColumnWidth(_ raw: OrderedJson, _ backtrace: ConfigBacktrace) -> ResOrConfigParseDiagnostic<Int> {
+    parseInt(raw, backtrace)
+        .filter(.init(backtrace, "scrolling-column-width must be an integer percentage in [10, 100]")) { (10 ... 100).contains($0) }
+}
+
+private func parseMouseModifier(_ raw: OrderedJson, _ backtrace: ConfigBacktrace) -> ResOrConfigParseDiagnostic<MouseModifier> {
+    parseString(raw, backtrace).flatMap {
+        MouseModifier(rawValue: $0).toResult(.init(backtrace, "mouse-modifier must be none, alt, ctrl, or cmd"))
+    }
 }
 
 func parseString(_ raw: OrderedJson, _ backtrace: ConfigBacktrace) -> ResOrConfigParseDiagnostic<String> {

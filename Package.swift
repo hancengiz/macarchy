@@ -53,6 +53,9 @@ let package = Package(
                 .target(name: "Common"),
                 .target(name: "PrivateApi"),
             ],
+            resources: [
+                .copy("Resources"),
+            ],
             swiftSettings: swiftSettings,
         ),
         .executableTarget(

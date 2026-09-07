@@ -41,10 +41,17 @@ struct Config: ConvenienceMutable {
     var _nonEmptyWorkspacesRootContainersLayoutOnStartup: Void = ()
     var defaultRootContainerLayout: Layout = .tiles
     var defaultRootContainerOrientation: DefaultContainerOrientation = .auto
+    var enableMouseEdgeFocus = false
+    var keepFloatingWindowsOnTop = false
     var startAtLogin: Bool = false
     var autoReloadConfig: Bool = false
     var automaticallyUnhideMacosHiddenApps: Bool = false
     var accordionPadding: Int = 30
+    var scrollingColumnWidth: Int = 49
+    var mouseModifier: MouseModifier = .none
+    var adoptNativeWindowResize = false
+    var warnAboutShortcutConflicts = false
+    var showSystemModeOverlay = false
     var enableNormalizationOppositeOrientationForNestedContainers: Bool = true
     var persistentWorkspaces: OrderedSet<String> = []
     var execOnWorkspaceChange: [String] = [] // todo deprecate

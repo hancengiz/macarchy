@@ -2,13 +2,13 @@ import AppKit
 
 extension Workspace {
     @MainActor
-    func layoutWorkspace() async throws {
+    func layoutWorkspace(hideCorner: OptimalHideCorner = .bottomRightCorner) async throws {
         if isEffectivelyEmpty { return }
         let rect = workspaceMonitor.visibleRectPaddedByOuterGaps
         // If monitors are aligned vertically and the monitor below has smaller width, then macOS may not allow the
         // window on the upper monitor to take full width. rect.height - 1 resolves this problem
         // But I also faced this problem in monitors horizontal configuration. ¯\_(ツ)_/¯
-        try await layoutRecursive(rect.topLeftCorner, width: rect.width, height: rect.height - 1, virtual: rect, LayoutContext(self))
+        try await layoutRecursive(rect.topLeftCorner, width: rect.width, height: rect.height - 1, virtual: rect, LayoutContext(self, hideCorner))
     }
 }
 
@@ -24,11 +24,23 @@ extension TreeNode {
                 try await workspace.floatingWindowsContainer.layoutRecursive(point, width: width, height: height, virtual: virtual, context)
             case .floatingWindowsContainer(let container):
                 for window in container.children.filterIsInstance(of: Window.self) {
+                    window.isOutsideScrollingViewport = false
+                    (window as? MacWindow)?.unhideFromCorner()
                     window.lastAppliedLayoutPhysicalRect = nil
                     window.lastAppliedLayoutVirtualRect = nil
                     try await window.layoutFloatingWindow(context)
                 }
             case .window(let window):
+                window.isOutsideScrollingViewport = !context.scrollingVisible
+                if !context.scrollingVisible {
+                    lastAppliedLayoutPhysicalRect = nil
+                    lastAppliedLayoutVirtualRect = nil
+                    if let window = window as? MacWindow {
+                        try await window.hideInCorner(context.hideCorner)
+                    }
+                    return
+                }
+                (window as? MacWindow)?.unhideFromCorner()
                 if window.windowId != currentlyManipulatedWithMouseWindowId {
                     lastAppliedLayoutVirtualRect = virtual
                     if window.isFullscreen && window == context.workspace.rootTilingContainer.mostRecentWindowRecursive {
@@ -44,6 +56,8 @@ extension TreeNode {
                 lastAppliedLayoutPhysicalRect = physicalRect
                 lastAppliedLayoutVirtualRect = virtual
                 switch container.layout {
+                    case .scrolling:
+                        try await container.layoutScrolling(point, width: width, height: height, virtual: virtual, context)
                     case .tiles:
                         try await container.layoutTiles(point, width: width, height: height, virtual: virtual, context)
                     case .accordion:
@@ -59,11 +73,14 @@ extension TreeNode {
 private struct LayoutContext {
     let workspace: Workspace
     let resolvedGaps: ResolvedGaps
+    let hideCorner: OptimalHideCorner
+    var scrollingVisible = true
 
     @MainActor
-    init(_ workspace: Workspace) {
+    init(_ workspace: Workspace, _ hideCorner: OptimalHideCorner) {
         self.workspace = workspace
         self.resolvedGaps = ResolvedGaps(gaps: config.gaps, monitor: workspace.workspaceMonitor)
+        self.hideCorner = hideCorner
     }
 }
 
@@ -105,6 +122,40 @@ extension Window {
 }
 
 extension TilingContainer {
+    @MainActor
+    fileprivate func layoutScrolling(_ point: CGPoint, width: CGFloat, height: CGFloat, virtual: Rect, _ context: LayoutContext) async throws {
+        let extent = orientation == .h ? width : height
+        let gap = CGFloat(context.resolvedGaps.inner.get(orientation))
+        let defaultSize = extent * CGFloat(config.scrollingColumnWidth) / 100
+        let enabled = TrayMenuModel.shared.isEnabled
+        let disabledSize = max(1, (extent - gap * CGFloat(max(0, children.count - 1))) / CGFloat(max(1, children.count)))
+        let viewport = ScrollingViewport(
+            sizes: children.map { enabled ? ($0.scrollingSize ?? defaultSize) : disabledSize },
+            extent: extent,
+            gap: gap,
+            focusedIndex: mostRecentChild?.ownIndex ?? 0,
+            previousOffset: enabled ? scrollingOffset : 0,
+        )
+        if enabled { scrollingOffset = viewport.offset }
+        for (index, child) in children.enumerated() {
+            let start = viewport.starts[index] - viewport.offset
+            let childPoint = point.addingOffset(orientation, start)
+            let rect = Rect(
+                topLeftX: childPoint.x,
+                topLeftY: childPoint.y,
+                width: orientation == .h ? viewport.sizes[index] : width,
+                height: orientation == .v ? viewport.sizes[index] : height,
+            )
+            var childContext = context
+            childContext.scrollingVisible = context.scrollingVisible && viewport.visible[index]
+            try await child.layoutRecursive(childPoint, width: rect.width, height: rect.height, virtual: rect, childContext)
+            if !childContext.scrollingVisible {
+                child.lastAppliedLayoutPhysicalRect = nil
+                child.lastAppliedLayoutVirtualRect = nil
+            }
+        }
+    }
+
     @MainActor
     fileprivate func layoutTiles(_ point: CGPoint, width: CGFloat, height: CGFloat, virtual: Rect, _ context: LayoutContext) async throws {
         var point = point

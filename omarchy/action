@@ -1,0 +1,98 @@
+#!/bin/bash
+set -euo pipefail
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+omarchy_dir="$(cd "$(dirname "$0")" && pwd)"
+
+notify() {
+    /usr/bin/osascript - "$1" <<'OSA'
+on run argv
+    display notification (item 1 of argv) with title "AeroSpace Omarchy"
+end run
+OSA
+}
+
+open_new_window() {
+    # macOS `open -a` only focuses a running app; Omarchy's launchers open a NEW window.
+    /usr/bin/osascript - "$1" >/dev/null 2>&1 <<'OSA' || return 1
+on run argv
+    tell application (item 1 of argv) to activate
+    tell application "System Events" to keystroke "n" using command down
+end run
+OSA
+}
+
+open_app() {
+    # Activating a running app focuses its existing window first, which would make
+    # AeroSpace adopt the new window into the OLD window's workspace. Remember the
+    # focused workspace before activating and pull the new window back into it.
+    local cli="$HOME/Applications/AeroSpace-Omarchy.app/Contents/Helpers/aerospace"
+    local ws
+    ws="$("$cli" list-workspaces --focused 2>/dev/null)" || ws=""
+    local before
+    before="$("$cli" list-windows --all 2>/dev/null | awk -F' \\| ' '{print $1}' | sort)"
+    for app in "$@"; do
+        if /usr/bin/open -Ra "$app" >/dev/null 2>&1; then
+            local running
+            running="$(/usr/bin/osascript -e "tell application \"System Events\" to (exists process \"$app\")" 2>/dev/null)"
+            if [ "$running" = "true" ] && open_new_window "$app"; then
+                :
+            else
+                /usr/bin/open -a "$app"
+            fi
+            if [ -n "$ws" ]; then
+                local new=""
+                for _ in 1 2 3 4 5 6 7 8; do
+                    sleep 0.25
+                    new="$(comm -13 <(printf '%s\n' "$before") <("$cli" list-windows --all 2>/dev/null | awk -F' \\| ' '{print $1}' | sort))"
+                    [ -n "$new" ] && break
+                done
+                for id in $new; do
+                    "$cli" move-node-to-workspace --focus-follows-window --window-id "$id" "$ws" 2>/dev/null || break
+                done
+            fi
+            return
+        fi
+    done
+    notify "No installed app found: $*"
+    return 1
+}
+
+settings() {
+    /usr/bin/open "x-apple.systempreferences:$1" || /usr/bin/open -b com.apple.systempreferences
+}
+
+case "${1:-}" in
+    borders)
+        command -v borders >/dev/null 2>&1 || exit 0
+        exec borders style=round width=3.0 hidpi=on ax_focus=off \
+            'active_color=gradient(top_left=0xff33ccff,bottom_right=0xff00ff99)' \
+            inactive_color=0xaa595959 background_color=0x00000000 \
+            'blacklist=AeroSpace Omarchy,AeroSpace'
+        ;;
+    terminal) open_app Ghostty iTerm WezTerm Terminal ;;
+    browser) /usr/bin/open https://www.google.com ;;
+    files) /usr/bin/open "$HOME" ;;
+    editor) open_app Zed 'Visual Studio Code' TextEdit ;;
+    music) open_app Spotify Music ;;
+    email) /usr/bin/open mailto: ;;
+    notes) open_app Obsidian Notes ;;
+    ai) open_app ChatGPT || /usr/bin/open https://chatgpt.com ;;
+    calendar) open_app Calendar ;;
+    clipboard) open_app Maccy Paste ;;
+    activity) open_app 'Activity Monitor' ;;
+    reminders) open_app Reminders ;;
+    capture) /usr/bin/open -a Screenshot ;;
+    audio) settings com.apple.Sound-Settings.extension ;;
+    bluetooth) settings com.apple.BluetoothSettings ;;
+    network) settings com.apple.Network-Settings.extension ;;
+    displays) settings com.apple.Displays-Settings.extension ;;
+    appearance) settings com.apple.Appearance-Settings.extension ;;
+    wallpaper) settings com.apple.Wallpaper-Settings.extension ;;
+    notifications) settings com.apple.Notifications-Settings.extension ;;
+    idle) settings com.apple.Lock-Screen-Settings.extension ;;
+    lock)
+        /usr/bin/osascript -e 'tell application "System Events" to keystroke "q" using {control down, command down}'
+        ;;
+    hotkeys) /usr/bin/open -a TextEdit "$omarchy_dir/HOTKEYS.txt" ;;
+    *) printf 'Unknown action: %s\n' "$1" >&2; exit 2 ;;
+esac

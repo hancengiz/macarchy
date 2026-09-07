@@ -1,0 +1,159 @@
+# Omarchy for macOS. Super = Option; Command stays with applications.
+# Install with: python3 omarchy/install.py
+config-version = 2
+start-at-login = true
+auto-reload-config = true
+default-root-container-layout = 'scrolling'
+default-root-container-orientation = 'horizontal'
+scrolling-column-width = 49
+mouse-modifier = 'alt'
+adopt-native-window-resize = true
+enable-mouse-edge-focus = true
+keep-floating-windows-on-top = true
+warn-about-shortcut-conflicts = true
+show-system-mode-overlay = true
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+accordion-padding = 20
+persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'scratch']
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+automatically-unhide-macos-hidden-apps = false
+key-mapping.preset = 'qwerty'
+focus-follows-mouse.enabled = false
+gaps.inner.horizontal = 10
+gaps.inner.vertical = 10
+gaps.outer.left = 10
+gaps.outer.right = 10
+gaps.outer.top = 10
+gaps.outer.bottom = 10
+
+[mode.main.binding]
+# Extra Control is used where Omarchy needs a second Alt modifier.
+# Windows: focus walks through the full row, independently of workspace switching.
+alt-left = 'focus --boundaries workspace left'
+alt-right = 'focus --boundaries workspace right'
+alt-up = 'focus --boundaries workspace up'
+alt-down = 'focus --boundaries workspace down'
+alt-shift-left = 'swap left'
+alt-shift-right = 'swap right'
+alt-shift-up = 'swap up'
+alt-shift-down = 'swap down'
+alt-l = 'layout --root scrolling h_tiles'
+alt-j = 'layout horizontal vertical'
+alt-t = 'layout floating tiling'
+alt-f = 'fullscreen'
+alt-ctrl-f = 'macos-native-fullscreen'
+alt-w = 'close'
+alt-q = 'close'
+alt-p = 'balance-sizes'
+alt-minus = 'resize width -100'
+alt-equal = 'resize width +100'
+alt-shift-minus = 'resize height -100'
+alt-shift-equal = 'resize height +100'
+alt-ctrl-minus = 'resize width -25'
+alt-ctrl-equal = 'resize width +25'
+alt-g = 'layout accordion tiles'
+alt-ctrl-g = 'flatten-workspace-tree'
+alt-ctrl-left = 'join-with left'
+alt-ctrl-right = 'join-with right'
+alt-ctrl-up = 'join-with up'
+alt-ctrl-down = 'join-with down'
+alt-period = 'focus --wrap-around dfs-next'
+alt-comma = 'focus --wrap-around dfs-prev'
+
+# Explicit order excludes scratch and prevents 10 from sorting between 1 and 2.
+alt-tab = 'echo -- 1 2 3 4 5 6 7 8 9 10 | workspace --stdin --wrap-around next'
+alt-shift-tab = 'echo -- 1 2 3 4 5 6 7 8 9 10 | workspace --stdin --wrap-around prev'
+alt-ctrl-tab = 'workspace-back-and-forth'
+alt-1 = 'workspace 1'
+alt-2 = 'workspace 2'
+alt-3 = 'workspace 3'
+alt-4 = 'workspace 4'
+alt-5 = 'workspace 5'
+alt-6 = 'workspace 6'
+alt-7 = 'workspace 7'
+alt-8 = 'workspace 8'
+alt-9 = 'workspace 9'
+alt-0 = 'workspace 10'
+alt-shift-1 = 'move-node-to-workspace --focus-follows-window 1'
+alt-shift-2 = 'move-node-to-workspace --focus-follows-window 2'
+alt-shift-3 = 'move-node-to-workspace --focus-follows-window 3'
+alt-shift-4 = 'move-node-to-workspace --focus-follows-window 4'
+alt-shift-5 = 'move-node-to-workspace --focus-follows-window 5'
+alt-shift-6 = 'move-node-to-workspace --focus-follows-window 6'
+alt-shift-7 = 'move-node-to-workspace --focus-follows-window 7'
+alt-shift-8 = 'move-node-to-workspace --focus-follows-window 8'
+alt-shift-9 = 'move-node-to-workspace --focus-follows-window 9'
+alt-shift-0 = 'move-node-to-workspace --focus-follows-window 10'
+alt-ctrl-shift-1 = 'move-node-to-workspace 1'
+alt-ctrl-shift-2 = 'move-node-to-workspace 2'
+alt-ctrl-shift-3 = 'move-node-to-workspace 3'
+alt-ctrl-shift-4 = 'move-node-to-workspace 4'
+alt-ctrl-shift-5 = 'move-node-to-workspace 5'
+alt-ctrl-shift-6 = 'move-node-to-workspace 6'
+alt-ctrl-shift-7 = 'move-node-to-workspace 7'
+alt-ctrl-shift-8 = 'move-node-to-workspace 8'
+alt-ctrl-shift-9 = 'move-node-to-workspace 9'
+alt-ctrl-shift-0 = 'move-node-to-workspace 10'
+alt-s = 'workspace --auto-back-and-forth scratch'
+alt-backtick = 'workspace --auto-back-and-forth scratch'
+alt-shift-backtick = 'move-node-to-workspace scratch'
+alt-pageDown = 'focus-monitor --wrap-around next'
+alt-pageUp = 'focus-monitor --wrap-around prev'
+alt-ctrl-shift-left = 'move-workspace-to-monitor --wrap-around left'
+alt-ctrl-shift-right = 'move-workspace-to-monitor --wrap-around right'
+alt-ctrl-shift-up = 'move-workspace-to-monitor --wrap-around up'
+alt-ctrl-shift-down = 'move-workspace-to-monitor --wrap-around down'
+
+# Launchers and tools use installed macOS apps, with system-app fallbacks.
+alt-enter = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" terminal'
+alt-shift-enter = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" browser'
+alt-shift-f = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" files'
+alt-shift-n = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" editor'
+alt-shift-m = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" music'
+alt-shift-e = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" email'
+alt-shift-o = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" notes'
+alt-shift-a = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" ai'
+alt-shift-c = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" calendar'
+alt-v = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" clipboard'
+alt-space = 'mode omarchy-menu'
+alt-k = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" hotkeys'
+alt-r = 'mode resize'
+alt-shift-esc = 'mode system'
+alt-semicolon = 'mode passthrough'
+alt-ctrl-r = 'reload-config'
+
+[mode.resize.binding]
+left = 'resize width -25'
+right = 'resize width +25'
+up = 'resize height -25'
+down = 'resize height +25'
+minus = 'resize width -100'
+equal = 'resize width +100'
+b = 'balance-sizes'
+enter = 'mode main'
+esc = 'mode main'
+
+[mode.system.binding]
+alt-shift-esc = 'mode main'
+a = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" audio']
+b = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" bluetooth']
+w = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" network']
+d = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" displays']
+t = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" activity']
+c = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" capture']
+l = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" lock']
+p = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" appearance']
+f = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" wallpaper']
+n = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" notifications']
+r = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" reminders']
+i = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" idle']
+esc = 'mode main'
+
+# All application shortcuts pass through; use the same chord to resume management.
+[mode.omarchy-menu.binding]
+alt-space = 'mode main'
+esc = 'mode main'
+
+[mode.passthrough.binding]
+alt-semicolon = 'mode main'

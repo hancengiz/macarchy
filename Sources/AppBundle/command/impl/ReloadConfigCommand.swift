@@ -56,7 +56,15 @@ struct ReloadConfigResult {
         await activateMode_nonCancellable(activeMode)
         syncStartAtLogin()
         syncFocusFollowsMouse(config)
+        MouseEdgeFocus.sync(enabled: config.enableMouseEdgeFocus)
+        if !syncModifierMouse(config) {
+            let warning = "Could not enable modifier mouse gestures. Check AeroSpace Accessibility permission, then reload config."
+            warnings.append(warning)
+            TrayMenuModel.shared.lastReloadConfigContainedWarnings = true
+            if !args.noGui { postModifierMouseWarningNotice(warning: warning) }
+        }
         syncConfigFileWatcher()
+        ShortcutConflicts.shared.syncMonitor()
     }
 
     if warningsAsErrors {

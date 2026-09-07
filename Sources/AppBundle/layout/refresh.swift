@@ -44,6 +44,7 @@ func runHeavyCompleteRefreshSession(
 
             updateTrayText()
             SecureInputPanel.shared.refresh()
+            refreshSystemModePanel()
             try await normalizeLayoutReason()
             if shouldLayoutWorkspaces { try await layoutWorkspaces() }
         }
@@ -79,12 +80,32 @@ func runLightSession<T>(
 
         updateTrayText()
         SecureInputPanel.shared.refresh()
+        refreshSystemModePanel()
         if !event.isFocusFollowsMouse { try await layoutWorkspaces() }
+
         if focusBefore != focusAfter {
             focusAfter?.nativeFocus() // syncFocusToMacOs
+            // Hyprland-style layering: after the focused window is raised, put
+            // floating windows back above the tiling layer. nativeFocus enqueues
+            // async AX jobs, so defer the raise to land after them.
+            if !(focusAfter?.isFloating ?? false) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(80))
+                    raiseFloatingWindows(workspace: focus.workspace)
+                }
+            }
         }
         if !event.isFocusFollowsMouse { scheduleCancellableCompleteRefreshSession(event) }
         return result
+    }
+}
+
+/// Hyprland-style layering: floating windows stay above the tiling layer.
+@MainActor
+func raiseFloatingWindows(workspace: Workspace?) {
+    guard config.keepFloatingWindowsOnTop, !isUnitTest, let workspace else { return }
+    for window in workspace.floatingWindows where window != focus.windowOrNil {
+        (window as? MacWindow)?.nativeRaise()
     }
 }
 
@@ -190,8 +211,9 @@ private func layoutWorkspaces() async throws {
     // to reduce flicker, first unhide visible workspaces, then hide invisible ones
     for monitor in monitors {
         let workspace = monitor.activeWorkspace
-        workspace.allLeafWindowsRecursive.forEach { ($0 as! MacWindow).unhideFromCorner() } // todo as!
-        try await workspace.layoutWorkspace()
+        workspace.allLeafWindowsRecursive.filter { !$0.isOutsideScrollingViewport }
+            .forEach { ($0 as! MacWindow).unhideFromCorner() } // todo as!
+        try await workspace.layoutWorkspace(hideCorner: monitorToOptimalHideCorner[monitor.rect.topLeftCorner] ?? .bottomRightCorner)
     }
     for workspace in Workspace.all where !workspace.isVisible {
         let corner = monitorToOptimalHideCorner[workspace.workspaceMonitor.rect.topLeftCorner] ?? .bottomRightCorner

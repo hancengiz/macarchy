@@ -8,6 +8,7 @@ func movedObs(_: AXObserver, ax: AXUIElement, notif: CFString, _: UnsafeMutableR
     let windowId = ax.containingWindowId()
     let notif = notif as String
     Task.startUnstructured { @MainActor in
+        if ModifierMouse.isDragging { return }
         guard let token: RunSessionGuard = .isServerEnabled else { return }
         guard let windowId, let window = Window.get(byId: windowId), try await isManipulatedWithMouse(window) else {
             scheduleCancellableCompleteRefreshSession(.ax(notif))
@@ -26,6 +27,8 @@ func movedObs(_: AXObserver, ax: AXUIElement, notif: CFString, _: UnsafeMutableR
 @MainActor
 private func moveWithMouse(_ window: Window) async throws { // todo cover with tests
     resetClosedWindowsCache()
+    // Resizing from a top/left edge emits both moved and resized AX notifications.
+    if try await adoptNativeWindowResize(window) { return }
     switch window.windowParentCases {
         case .floatingWindowsContainer:
             try await moveFloatingWindow(window)
@@ -47,10 +50,10 @@ private func moveFloatingWindow(_ window: Window) async throws {
 }
 
 @MainActor
-private func moveTilingWindow(_ window: Window) {
+func moveTilingWindow(_ window: Window, at location: CGPoint? = nil) {
     currentlyManipulatedWithMouseWindowId = window.windowId
     window.lastAppliedLayoutPhysicalRect = nil
-    let mouseLocation = mouseLocation
+    let mouseLocation = location ?? mouseLocation
     let targetWorkspace = mouseLocation.monitorApproximation.activeWorkspace
     let swapTarget = mouseLocation
         .findWindowRecursively(in: targetWorkspace.rootTilingContainer, virtual: false, fullscreenCoversAll: false)?
@@ -103,7 +106,7 @@ extension CGPoint {
     private func _findWindowRecursively(in tree: TilingContainer, virtual: Bool) -> Window? {
         let point = self
         let target: TreeNode? = switch tree.layout {
-            case .tiles:
+            case .tiles, .scrolling:
                 tree.children.first(where: {
                     (virtual ? $0.lastAppliedLayoutVirtualRect : $0.lastAppliedLayoutPhysicalRect)?.contains(point) == true
                 })

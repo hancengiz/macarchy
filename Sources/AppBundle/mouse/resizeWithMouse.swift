@@ -8,7 +8,14 @@ func resizedObs(_: AXObserver, ax: AXUIElement, notif: CFString, _: UnsafeMutabl
     let notif = notif as String
     let windowId = ax.containingWindowId()
     Task.startUnstructured { @MainActor in
+        if ModifierMouse.isDragging { return }
         guard let token: RunSessionGuard = .isServerEnabled else { return }
+        if let windowId, let window = Window.get(byId: windowId), config.adoptNativeWindowResize {
+            try await runLightSession(.ax(notif), token) {
+                _ = try await adoptNativeWindowResize(window)
+            }
+            return
+        }
         guard let windowId, let window = Window.get(byId: windowId), try await isManipulatedWithMouse(window) else {
             scheduleCancellableCompleteRefreshSession(.ax(notif))
             return

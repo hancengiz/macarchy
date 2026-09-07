@@ -11,9 +11,16 @@ public func getMessageWindow(messageModel: MessageModel) -> some Scene {
                 NSApp.setActivationPolicy(.accessory)
                 NSApplication.shared.windows.forEach {
                     if $0.identifier?.rawValue == messageWindowId {
-                        $0.level = .floating
+                        $0.level = messageModel.message?.type == .config ? .floating : .normal
                         $0.styleMask.remove(.miniaturizable) // Disable minimize button, because we don't unminimize the window on config error
+                        // macOS window-state restoration resurrects this window empty on every launch.
+                        $0.isRestorable = false
                     }
+                }
+            }
+            .onChange(of: messageModel.message?.type) { type in
+                NSApplication.shared.windows.filter { $0.identifier?.rawValue == messageWindowId }.forEach {
+                    $0.level = type == .config ? .floating : .normal
                 }
             }
         // .windowMinimizeBehavior(WindowInteractionBehavior.disabled) // SwiftUI way of hiding minimize button. Available only since macOS 15
@@ -36,38 +43,49 @@ struct MessageView: View {
     public var body: some View {
         VStack(alignment: .leading) {
             HStack(alignment: .center) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.yellow)
-                    .font(.system(size: 48))
+                Image(systemName: model.message?.type == .config ? "exclamationmark.triangle.fill" : "keyboard")
+                    .foregroundColor(model.message?.type == .config ? .yellow : .secondary)
+                    .font(.system(size: 24))
                 Text("\(model.message?.description ?? "")")
+                    .font(.title2)
                     .padding(.horizontal)
                     .focusable()
             }
             .padding()
-            ScrollView {
-                VStack(alignment: .leading) {
-                    HStack {
-                        let cancelOnEnterBinding: Binding<String> = Binding(
-                            get: { model.message?.body ?? "" },
-                            set: { newText in
-                                if let prev = model.message?.body.count(where: \.isNewline), newText.count(where: \.isNewline) > prev {
-                                    model.message = nil
-                                }
-                            },
-                        )
-                        TextEditor(text: cancelOnEnterBinding)
-                            .font(.system(size: 12).monospaced())
-                            .focused($focus)
-                        //  .onKeyPress(.return) { return .handled } // enter handling alternative. Only available since macOS 14
+            if model.message?.type == .shortcuts {
+                ScrollView {
+                    Text(model.message?.body ?? "")
+                        .font(.system(size: 12).monospaced())
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                }
+                .frame(height: 420)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading) {
+                        HStack {
+                            let cancelOnEnterBinding: Binding<String> = Binding(
+                                get: { model.message?.body ?? "" },
+                                set: { newText in
+                                    if let prev = model.message?.body.count(where: \.isNewline), newText.count(where: \.isNewline) > prev {
+                                        model.message = nil
+                                    }
+                                },
+                            )
+                            TextEditor(text: cancelOnEnterBinding)
+                                .font(.system(size: 12).monospaced())
+                                .focused($focus)
+                            //  .onKeyPress(.return) { return .handled } // enter handling alternative. Only available since macOS 14
+                            Spacer()
+                        }
                         Spacer()
                     }
-                    Spacer()
+                    .padding()
                 }
-                .padding()
+                .background(Color(.controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .padding(.horizontal)
             }
-            .background(Color(.controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .padding(.horizontal)
             HStack {
                 Spacer()
                 if let type = model.message?.type {
@@ -75,10 +93,16 @@ struct MessageView: View {
                         case .config:
                             reloadConfigButton(showShortcutGroup: true, warningsAsErrors: model.message?.containsWarnings == true)
                             openConfigButton(showShortcutGroup: true)
+                        case .shortcuts:
+                            Button("Refresh") {
+                                model.message = Message(type: .shortcuts, title: "Current Shortcuts", description: "Current Shortcuts",
+                                                        body: currentShortcutsDescription(config), containsWarnings: false)
+                            }
+                            openConfigButton()
                     }
                 }
                 let closeButton = Button("Close") { model.message = nil }.keyboardShortcut(.defaultAction)
-                shortcutGroup(label: Image(systemName: "return.left"), content: closeButton)
+                closeButton
             }
             .padding()
         }
@@ -94,7 +118,12 @@ struct MessageView: View {
             model.message = nil
         }
         .onAppear {
-            focus = true
+            // A window restored without a message must never linger as an empty shell.
+            if model.message == nil {
+                dismiss()
+            } else {
+                focus = true
+            }
         }
     }
 }
@@ -108,6 +137,7 @@ public final class MessageModel: ObservableObject {
 
 public enum MessageType {
     case config
+    case shortcuts
 }
 
 public struct Message: Hashable, Equatable {

@@ -6,6 +6,7 @@ import HotKey
 @MainActor private var hotkeys: [String: HotKey] = [:]
 
 @MainActor func resetHotKeys() {
+    ShortcutConflicts.shared.reset()
     // Explicitly unregister all hotkeys. We cannot always rely on destruction of the HotKey object to trigger
     // unregistration because we might be running inside a hotkey handler that is keeping its HotKey object alive.
     for (_, key) in hotkeys {
@@ -26,9 +27,24 @@ extension HotKey {
 }
 
 @MainActor var activeMode: String? = mainModeId
-@MainActor func activateMode_nonCancellable(_ targetMode: String?) async {
+@MainActor func activateMode_nonCancellable(_ targetMode: String?, forceConflictCheck: Bool = false) async {
     let targetBindings = targetMode.flatMap { config.modes[$0] }?.bindings ?? [:]
-    for binding in targetBindings.values where !hotkeys.keys.contains(binding.descriptionWithKeyCode) {
+    let checkConflicts = (config.warnAboutShortcutConflicts || forceConflictCheck) && !isUnitTest
+    let systemCombos = checkConflicts ? KeyCombo.systemKeyCombos() : []
+    // Release our own registrations before probing so we never report ourselves as the owner.
+    if checkConflicts { hotkeys.values.forEach { $0.isEnabled = false } }
+    var allowed: Set<String> = []
+    var conflicts: [ShortcutConflict] = []
+    for binding in targetBindings.values {
+        let notation = binding.descriptionWithKeyNotation
+        let mode = targetMode ?? mainModeId
+        if ShortcutConflicts.shared.isDisabled(mode: mode, binding: notation) { continue }
+        if checkConflicts, let reason = shortcutRegistrationConflict(binding, systemCombos: systemCombos) {
+            conflicts.append(ShortcutConflict(mode: mode, binding: notation, reason: reason))
+            continue
+        }
+        allowed.insert(binding.descriptionWithKeyCode)
+        if hotkeys.keys.contains(binding.descriptionWithKeyCode) { continue }
         hotkeys[binding.descriptionWithKeyCode] = HotKey(key: binding.keyCode, modifiers: binding.modifiers, keyDownHandler: {
             Task.startUnstructured {
                 if let activeMode {
@@ -45,10 +61,13 @@ extension HotKey {
         })
     }
     for (binding, key) in hotkeys {
-        key.isEnabled = targetBindings.keys.contains(binding)
+        key.isEnabled = allowed.contains(binding)
     }
     let oldMode = activeMode
     activeMode = targetMode
+    ShortcutConflicts.shared.update(conflicts)
+    refreshSystemModePanel()
+    refreshOmarchyMenu()
     if oldMode != targetMode {
         broadcastEvent(.modeChanged(mode: targetMode))
         _ = await config.onModeChanged.run(.defaultEnv, .emptyStdin)

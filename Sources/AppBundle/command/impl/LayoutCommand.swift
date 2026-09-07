@@ -41,6 +41,8 @@ struct LayoutCommand: Command {
             }
         }
         switch targetDescription {
+            case .scrolling:
+                return changeTilingLayout(io, targetLayout: .scrolling, targetOrientation: .h, node: node)
             case .h_accordion:
                 return changeTilingLayout(io, targetLayout: .accordion, targetOrientation: .h, node: node)
             case .v_accordion:
@@ -94,6 +96,9 @@ struct LayoutCommand: Command {
         case .tilingContainer(let parent):
             let targetOrientation = targetOrientation ?? parent.orientation
             let targetLayout = targetLayout ?? parent.layout
+            if targetLayout == .scrolling && targetOrientation == .v {
+                return .succ(io.err("Scrolling columns stay horizontal. Switch to tiles to toggle split orientation."))
+            }
             parent.layout = targetLayout
             parent.changeOrientation(targetOrientation)
             return .succ
@@ -103,6 +108,7 @@ struct LayoutCommand: Command {
 extension ConventionalWindowParentCases {
     fileprivate func matchesDescription(_ layout: LayoutCmdArgs.LayoutDescription) -> Bool {
         return switch layout {
+            case .scrolling:   tilingContainerOrNil?.layout == .scrolling && tilingContainerOrNil?.orientation == .h
             case .accordion:   tilingContainerOrNil?.layout == .accordion
             case .tiles:       tilingContainerOrNil?.layout == .tiles
             case .horizontal:  tilingContainerOrNil?.orientation == .h

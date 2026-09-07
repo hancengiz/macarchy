@@ -48,10 +48,18 @@ Possible values:
 +
 * `h_tiles|v_tiles|h_accordion|v_accordion` - Change both tiling layout and orientation in one go
 * `tiles|accordion` - Change tiling layout but preserve orientation
+* `scrolling` - Horizontal columns with a viewport that follows focus (this fork)
 * `horizontal|vertical` - Change orientation but preserve layout
 * `tiling|floating` - Toggle between floating/tiling mode
 +
 If several `<target-layout>` are supplied, then the first one that doesn't describe the currently active layout is applied.
+
+`scrolling` keeps each column at `scrolling-column-width` percent of the workspace
+(49 by default; integer range 10 through 100). `resize width` changes only the
+current column; `balance-sizes` restores the configured widths. Columns can extend
+past a display edge without being shrunk. Fully offscreen columns use AeroSpace's
+corner hiding. Adjacent displays can show overflow because macOS does not provide
+per-workspace clipping. Scrolling is immediate, without compositor animation.
 
 // =========================================================== Examples
 include::./util/conditional-examples-header.adoc[]
@@ -64,6 +72,9 @@ include::./util/conditional-examples-header.adoc[]
 
 * Toggle between `tiles` and `accordion` layouts (order of args doesn't matter): +
 `aerospace layout tiles accordion`
+
+* Toggle the current workspace between horizontal tiling and scrolling columns: +
+`aerospace layout --root scrolling h_tiles`
 
 * Switch to `tiles` layout. Toggle the layout orientation if already in `tiles` layout: +
 `aerospace layout tiles horizontal vertical`

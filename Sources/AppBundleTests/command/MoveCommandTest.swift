@@ -334,6 +334,7 @@ extension TreeNode {
             case .macosPopupWindowsContainer: .macosPopupWindowsContainer
             case .tilingContainer(let container):
                 switch container.layout {
+                    case .scrolling: .scrolling(container.children.map(\.layoutDescription))
                     case .tiles:
                         container.orientation == .h
                             ? .h_tiles(container.children.map(\.layoutDescription))
@@ -348,6 +349,7 @@ extension TreeNode {
 }
 
 enum LayoutDescription: Equatable {
+    case scrolling([LayoutDescription])
     case workspace([LayoutDescription])
     case h_tiles([LayoutDescription])
     case v_tiles([LayoutDescription])

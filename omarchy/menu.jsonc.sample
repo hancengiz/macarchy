@@ -1,0 +1,42 @@
+// Your Omarchy-style menu extensions for AeroSpace.
+// This file is optional; delete everything below to return to the shipped defaults.
+//
+// Format (mirrors Omarchy's omarchy-menu.jsonc):
+//   - Flat JSON object whose keys ARE dotted ids; nesting comes from the dots.
+//   - Whole-line // comments and trailing commas are allowed; inline comments are NOT.
+//   - Same-id entries merge per field (label, icon, action, ...) and keep their position.
+//   - New ids append. icon = SF Symbol name. action = shell command.
+//   - Reserved in-app actions: aerospace:shortcuts, aerospace:conflicts,
+//     aerospace:reload, aerospace:hotkeys.
+//   - "when"/"checked"/"disabled" hold bash conditions; "disabled": "true" hides
+//     nothing but disables the row (0.4 opacity, unselectable).
+//   - "apps" supports an "exclude" list of app names to hide from the Apps submenu.
+//
+// Examples (uncomment and edit):
+//
+// {
+//   // Reuse an existing id to retitle or re-icon a shipped entry:
+//   "system": { "label": "macOS Settings" },
+//
+//   // A personal submenu with nested children (parents are implied by the dots):
+//   "personal.media": { "icon": "play.tv", "label": "Media" },
+//   "personal.media.tv": { "icon": "tv", "label": "TV", "action": "open 'x-apple.tv://'" },
+//
+//   // A custom shell command:
+//   "personal.dns-flush": {
+//     "icon": "network.badge.shield.half.filled",
+//     "label": "Flush DNS",
+//     "action": "sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder",
+//   },
+//
+//   // Hide shipped entries with a failing guard or disable them:
+//   "learn": { "when": "false" },
+//
+//   // Keep certain apps out of the Apps submenu:
+//   "apps": { "exclude": ["Stickies", "Chess"] },
+// }
+
+
+//   - "keybindings" is a built-in provider: it lists every live main-mode shortcut;
+//     selecting a row runs that shortcut. Reuse it under a different id if you want
+//     it elsewhere in the tree: "my.keys": { "label": "Keys", "provider": "keybindings" }.

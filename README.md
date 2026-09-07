@@ -4,6 +4,10 @@
 
 AeroSpace is an i3-like tiling window manager for macOS
 
+This fork adds [Omarchy-style scrolling columns and Option-key shortcuts](./omarchy/README.md),
+modifier mouse move/resize, native resize adoption, and shortcut conflict warnings.
+See the fork guide for installation; the Homebrew instructions below install upstream.
+
 Videos:
 - [YouTube 91 sec Demo](https://www.youtube.com/watch?v=UOl7ErqWbrk)
 - [YouTube Guide by Josean Martinez](https://www.youtube.com/watch?v=-FoWClVHG5g)

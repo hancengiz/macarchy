@@ -1,0 +1,153 @@
+// AeroSpace Omarchy — shipped menu defaults (macOS port of Omarchy's omarchy-menu.jsonc).
+// Format: flat JSON object whose keys ARE dotted ids. Whole-line // comments and
+// trailing commas are allowed; inline trailing comments are NOT (same dialect as Omarchy).
+// Overlay your own entries in ~/.config/aerospace/omarchy/menu.jsonc (same format):
+//   same-id entries merge per field and keep their original position; new ids append.
+// icon = SF Symbol name. action = shell command, or one of the reserved in-app actions:
+//   aerospace:shortcuts, aerospace:conflicts, aerospace:reload, aerospace:hotkeys.
+// Guards (when/checked/disabled) hold bash conditions evaluated in one batch.
+{
+  "root": { "icon": "square.grid.2x2", "label": "Go" },
+
+  "apps": {
+    "icon": "square.grid.2x2.fill",
+    "label": "Apps",
+    "aliases": ["app", "applications"],
+    "provider": "apps",
+    "description": "installed applications",
+  },
+
+  "system": {
+    "icon": "gearshape",
+    "label": "System",
+    "title": "System",
+  },
+  "system.sound": {
+    "icon": "speaker.wave.2",
+    "label": "Sound",
+    "description": "audio volume output input",
+    "action": "\"$HOME/.config/aerospace/omarchy/action\" audio",
+  },
+  "system.bluetooth": {
+    "icon": "antenna.radiowaves.left.and.right",
+    "label": "Bluetooth",
+    "description": "wireless devices",
+    "action": "\"$HOME/.config/aerospace/omarchy/action\" bluetooth",
+  },
+  "system.network": {
+    "icon": "wifi",
+    "label": "Network",
+    "description": "wifi internet",
+    "action": "\"$HOME/.config/aerospace/omarchy/action\" network",
+  },
+  "system.displays": {
+    "icon": "display",
+    "label": "Displays",
+    "description": "monitor resolution brightness",
+    "action": "\"$HOME/.config/aerospace/omarchy/action\" displays",
+  },
+
+  "keybindings": {
+    "icon": "keyboard",
+    "label": "Keybindings",
+    "aliases": ["hotkeys", "shortcuts", "trigger"],
+    "provider": "keybindings",
+    "description": "run any active shortcut",
+  },
+  "system.appearance": {
+    "icon": "circle.lefthalf.filled",
+    "label": "Appearance",
+    "description": "theme dark light color",
+    "action": "\"$HOME/.config/aerospace/omarchy/action\" appearance",
+  },
+  "system.wallpaper": {
+    "icon": "photo",
+    "label": "Wallpaper",
+    "description": "background desktop picture",
+    "action": "\"$HOME/.config/aerospace/omarchy/action\" wallpaper",
+  },
+  "system.notifications": {
+    "icon": "bell",
+    "label": "Notifications",
+    "description": "alerts focus",
+    "action": "\"$HOME/.config/aerospace/omarchy/action\" notifications",
+  },
+  "system.lockscreen": {
+    "icon": "lock.shield",
+    "label": "Lock Screen Settings",
+    "description": "idle sleep password",
+    "action": "\"$HOME/.config/aerospace/omarchy/action\" idle",
+  },
+  "system.lock": {
+    "icon": "lock.fill",
+    "label": "Lock Screen",
+    "description": "lock sleep",
+    "action": "\"$HOME/.config/aerospace/omarchy/action\" lock",
+  },
+  "system.screenshot": {
+    "icon": "camera.viewfinder",
+    "label": "Screenshot",
+    "description": "capture record screen",
+    "action": "\"$HOME/.config/aerospace/omarchy/action\" capture",
+  },
+  "system.activity": {
+    "icon": "waveform.path.ecg",
+    "label": "Activity Monitor",
+    "description": "processes cpu memory",
+    "action": "\"$HOME/.config/aerospace/omarchy/action\" activity",
+  },
+
+  "aerospace": {
+    "icon": "rectangle.split.2x1",
+    "label": "AeroSpace",
+    "title": "AeroSpace",
+  },
+  "aerospace.shortcuts": {
+    "icon": "keyboard",
+    "label": "Current Shortcuts",
+    "description": "hotkeys bindings help",
+    "action": "aerospace:shortcuts",
+  },
+  "aerospace.conflicts": {
+    "icon": "exclamationmark.triangle",
+    "label": "Check Shortcut Conflicts",
+    "description": "recheck hotkeys bindings",
+    "action": "aerospace:conflicts",
+  },
+  "aerospace.reload": {
+    "icon": "arrow.clockwise",
+    "label": "Reload Config",
+    "description": "config reload refresh",
+    "action": "aerospace:reload",
+  },
+  "aerospace.hotkeys": {
+    "icon": "doc.text",
+    "label": "Hotkey Reference File",
+    "description": "hotkeys txt reference",
+    "action": "aerospace:hotkeys",
+  },
+
+  "learn": {
+    "icon": "book",
+    "label": "Learn",
+    "title": "Learn",
+  },
+  "learn.manual": {
+    "icon": "book.pages",
+    "label": "Omarchy Manual",
+    "description": "documentation guide",
+    "action": "open https://omarchy.org/manual/",
+  },
+  "learn.hotkeys": {
+    "icon": "keyboard.chevron.left",
+    "label": "Omarchy Hotkeys",
+    "description": "documentation keybindings",
+    "action": "open https://omarchy.org/manual/hotkeys/",
+  },
+  "learn.aerospace": {
+    "icon": "rectangle.split.3x1",
+    "label": "AeroSpace Guide",
+    "description": "tiling documentation guide",
+    "action": "open https://nikitabobko.github.io/AeroSpace/guide",
+  },
+}
