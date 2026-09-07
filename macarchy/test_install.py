@@ -29,33 +29,33 @@ class InstallerTest(unittest.TestCase):
                     if stock:
                         self.assertNotIn("scrolling-column-width", data)
                         self.assertEqual(data["default-root-container-layout"], "tiles")
-                        self.assertNotIn("omarchy-menu", text, "Stock must not reference the fork-only launcher mode")
-                        self.assertNotIn("omarchy-menu", data["mode"])
+                        self.assertNotIn("macarchy-menu", text, "Stock must not reference the fork-only launcher mode")
+                        self.assertNotIn("macarchy-menu", data["mode"])
                     if not stock:
-                        self.assertEqual(data["mode"]["omarchy-menu"]["binding"]["alt-space"], "mode main")
+                        self.assertEqual(data["mode"]["macarchy-menu"]["binding"]["alt-space"], "mode main")
                     if leader:
                         self.assertEqual(list(keys), ["f18"])
-                        self.assertEqual(data["mode"]["omarchy"]["binding"]["esc"], "mode main")
-                        self.assertEqual(data["mode"]["omarchy"]["binding"]["backspace"], ["mode main", "mode system"])
+                        self.assertEqual(data["mode"]["macarchy"]["binding"]["esc"], "mode main")
+                        self.assertEqual(data["mode"]["macarchy"]["binding"]["backspace"], ["mode main", "mode system"])
                         if not stock:
-                            self.assertEqual(data["mode"]["omarchy"]["binding"]["space"], ["mode main", "mode omarchy-menu"],
+                            self.assertEqual(data["mode"]["macarchy"]["binding"]["space"], ["mode main", "mode macarchy-menu"],
                                              "Leader profile must still open the launcher")
-                            self.assertIn("omarchy-menu", data["mode"])
+                            self.assertIn("macarchy-menu", data["mode"])
                         self.assertIn("passthrough", data["mode"], "Leader transformation must keep the passthrough section")
 
     def test_install_and_restore_preserve_previous_files(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
-            config = home / ".aerospace.toml"
+            config = home / ".macarchy.toml"
             config.write_text("# previous config\n")
-            helper = home / ".config/aerospace/omarchy"
+            helper = home / ".config/macarchy"
             helper.mkdir(parents=True)
             (helper / "action").write_text("# previous helper\n")
             with patch.object(Path, "home", return_value=home), contextlib.redirect_stdout(io.StringIO()):
                 with patch("sys.argv", ["install.py", "--stock"]):
                     install.main()
                 self.assertIn("alt-t", config.read_text())
-                backup = next((home / ".config/aerospace/backups").iterdir())
+                backup = next((home / ".config/macarchy/backups").iterdir())
                 with patch("sys.argv", ["install.py", "--restore", str(backup), "--dry-run"]):
                     install.main()
                 self.assertIn("alt-t", config.read_text())

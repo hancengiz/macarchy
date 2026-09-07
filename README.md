@@ -29,7 +29,7 @@ AeroSpace; the desktop experience design follows Omarchy.
   Omarchy-style JSONC menu: nested submenus, dotted ids, per-field overrides,
   searchable installed apps with real icons, bash `when/checked/disabled`
   guards, and a **Keybindings** section that can run any live shortcut.
-  Customize `~/.config/aerospace/omarchy/menu.jsonc`; edits apply live.
+  Customize `~/.config/macarchy/menu.jsonc`; edits apply live.
 - **Desktop notifications** — compact panels under the workspace indicators
   for shortcut conflicts, gesture failures, and config errors.
 - **Hyprland-style layering** — floating windows stay above the tiling layer.
@@ -40,12 +40,12 @@ Requires macOS 13+, full Xcode (for XCTest), Python 3.11+, and Bash 5
 (`brew install bash`).
 
 ```sh
-env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 omarchy/install.py --build
+env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 macarchy/install.py --build
 ```
 
 This builds `~/Applications/macarchy.app`, installs the profile to
-`~/.aerospace.toml`, the helper to `~/.config/aerospace/omarchy/`, and backs
-up anything it replaces under `~/.config/aerospace/backups/`. Enable
+`~/.macarchy.toml`, the helper to `~/.config/macarchy/`, and backs
+up anything it replaces under `~/.config/macarchy/backups/`. Enable
 **macarchy** under System Settings → Privacy & Security → Accessibility.
 
 - Local builds are ad-hoc signed: every rebuild changes the signature and
@@ -81,8 +81,8 @@ Option+arrows word navigation.
 
 ```sh
 env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
-python3 -m unittest discover -s omarchy -p 'test_*.py'
-bash -n omarchy/action
+python3 -m unittest discover -s macarchy -p 'test_*.py'
+bash -n macarchy/action
 ```
 
 The full product brief and continuation notes live in

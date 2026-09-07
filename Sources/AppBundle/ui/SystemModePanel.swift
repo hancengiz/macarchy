@@ -25,7 +25,7 @@ func systemModeShortcuts(_ config: Config) -> [SystemModeShortcut] {
             = if commands.count == 2, returnsToMain,
             let exec = commands[1] as? ExecAndForgetCommand,
             let name = names.first(where: {
-                exec.args.bashScript.trimmingCharacters(in: .whitespacesAndNewlines) == "\"$HOME/.config/aerospace/omarchy/action\" \($0.key)"
+                exec.args.bashScript.trimmingCharacters(in: .whitespacesAndNewlines) == "\"$HOME/.config/macarchy/action\" \($0.key)"
             })?.value
         {
             name

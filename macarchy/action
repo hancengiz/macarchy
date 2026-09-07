@@ -25,7 +25,7 @@ open_app() {
     # Activating a running app focuses its existing window first, which would make
     # AeroSpace adopt the new window into the OLD window's workspace. Remember the
     # focused workspace before activating and pull the new window back into it.
-    local cli="$HOME/Applications/macarchy.app/Contents/Helpers/aerospace"
+    local cli="$HOME/Applications/macarchy.app/Contents/Helpers/macarchy"
     local ws
     ws="$("$cli" list-workspaces --focused 2>/dev/null)" || ws=""
     local before

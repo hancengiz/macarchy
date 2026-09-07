@@ -400,7 +400,7 @@ final class OmarchyMenuStore: ObservableObject {
     @Published private(set) var appsExclude: [String] = []
 
     let userMenuUrl = FileManager.default.homeDirectoryForCurrentUser
-        .appending(path: ".config/aerospace/omarchy/menu.jsonc")
+        .appending(path: ".config/macarchy/menu.jsonc")
 
     private var defaultNodes: [OmarchyMenuNode] = []
     private var lastGoodUserNodes: [OmarchyMenuNode]? = nil

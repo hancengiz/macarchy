@@ -30,10 +30,10 @@ def profile(stock=False, leader=False):
         text = text.replace("warn-about-shortcut-conflicts = true\n", "")
         text = text.replace("show-system-mode-overlay = true\n", "")
         # Upstream AeroSpace cannot render the fork's launcher panel; keep stock honest.
-        text = text.replace("alt-space = 'mode omarchy-menu'\n", "")
+        text = text.replace("alt-space = 'mode macarchy-menu'\n", "")
         text = text.replace(
             "# All application shortcuts pass through; use the same chord to resume management.\n"
-            "[mode.omarchy-menu.binding]\nalt-space = 'mode main'\nesc = 'mode main'\n\n",
+            "[mode.macarchy-menu.binding]\nalt-space = 'mode main'\nesc = 'mode main'\n\n",
             "",
         )
     data = tomllib.loads(text)
@@ -54,7 +54,7 @@ def profile(stock=False, leader=False):
         _, rest = rest.split("[mode.resize.binding]", 1)
         # Keep the launcher and passthrough sections after the leader transformation.
         head, marker, tail = rest.partition("# All application shortcuts pass through;")
-        text = prefix + "[mode.main.binding]\nf18 = 'mode omarchy'\n\n[mode.omarchy.binding]\n"
+        text = prefix + "[mode.main.binding]\nf18 = 'mode macarchy'\n\n[mode.macarchy.binding]\n"
         text += "\n".join(lines) + "\n\n[mode.resize.binding]" + head + marker + tail
     tomllib.loads(text)
     return text
@@ -69,7 +69,7 @@ def hotkeys(text):
         lines += [mode.upper(), ""]
         for key, commands in settings["binding"].items():
             commands = commands if isinstance(commands, list) else [commands]
-            label = " ; ".join(commands).replace('exec-and-forget "$HOME/.config/aerospace/omarchy/action" ', "open ")
+            label = " ; ".join(commands).replace('exec-and-forget "$HOME/.config/macarchy/action" ', "open ")
             lines.append(f"{key:32} {label}")
         lines.append("")
     return "\n".join(lines) + "\n"
@@ -89,7 +89,7 @@ def build_app():
     (contents / "Helpers").mkdir(exist_ok=True)
     shutil.copy2(bin_dir / "AeroSpaceApp", contents / "MacOS" / "AeroSpace")
     # Default macOS volumes are case-insensitive: AeroSpace and aerospace collide.
-    shutil.copy2(bin_dir / "aerospace", contents / "Helpers" / "aerospace")
+    shutil.copy2(bin_dir / "aerospace", contents / "Helpers" / "macarchy")
     shutil.copy2(ROOT / "docs/config-examples/default-config.toml", contents / "Resources" / "default-config.toml")
     for resource in bin_dir.glob("*.bundle"):
         shutil.copytree(resource, contents / "Resources" / resource.name, dirs_exist_ok=True)
@@ -120,15 +120,15 @@ def main():
     if args.stock and (args.build or args.build_only):
         parser.error("--stock cannot be combined with --build or --build-only")
     home = Path.home()
-    config = home / ".aerospace.toml"
-    helper = home / ".config/aerospace/omarchy"
+    config = home / ".macarchy.toml"
+    helper = home / ".config/macarchy"
     if args.restore:
         backup = args.restore.expanduser().resolve()
         manifest = json.loads((backup / "manifest.json").read_text())
         if args.dry_run:
             print(f"Would restore {config} and {helper} from {backup}")
             return
-        for name, target in [("aerospace.toml", config), ("omarchy", helper)]:
+        for name, target in [("macarchy.toml", config), ("macarchy", helper)]:
             source = backup / name
             if manifest[name]:
                 if source.is_dir():
@@ -146,28 +146,33 @@ def main():
     app = build_app() if args.build or args.build_only else None
     if args.build_only:
         return
-    if args.profile_only and not (home / "Applications/macarchy.app/Contents/Helpers/aerospace").is_file():
+    if args.profile_only and not (home / "Applications/macarchy.app/Contents/Helpers/macarchy").is_file():
         parser.error("The fork is not installed yet. Use --build first")
     if not args.stock and not app and not args.profile_only:
         parser.error("Use --build for the fork, --profile-only to update it, or --stock for upstream AeroSpace")
+    # Migrate legacy AeroSpace-Omarchy-era paths once, preserving user data.
+    # Never under --stock: upstream AeroSpace still reads the legacy paths.
+    if not args.stock:
+        migrate_legacy_paths(home)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-    backup = home / ".config/aerospace/backups" / stamp
+    backup = home / ".config/macarchy/backups" / stamp
     backup.mkdir(parents=True)
     manifest = {}
-    for name, target in [("aerospace.toml", config), ("omarchy", helper)]:
+    for name, target in [("macarchy.toml", config), ("macarchy", helper)]:
         manifest[name] = target.exists()
         if target.is_dir():
-            shutil.copytree(target, backup / name)
+            # The backups directory lives inside the helper dir; never back it up.
+            shutil.copytree(target, backup / name, ignore=shutil.ignore_patterns("backups"))
         elif target.exists():
             shutil.copy2(target, backup / name)
     (backup / "manifest.json").write_text(json.dumps(manifest, indent=2))
     helper.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(ROOT / "omarchy/action", helper / "action")
+    shutil.copy2(ROOT / "macarchy/action", helper / "action")
     (helper / "action").chmod(0o755)
     menu = helper / "menu.jsonc"
     if not menu.exists():
         # Never overwrite user menu customizations; a missing sample installs fresh.
-        shutil.copy2(ROOT / "omarchy/menu.jsonc.sample", menu)
+        shutil.copy2(ROOT / "macarchy/menu.jsonc.sample", menu)
     (helper / "HOTKEYS.txt").write_text(hotkeys(text))
     with tempfile.NamedTemporaryFile(mode="w", dir=config.parent, delete=False) as file:
         file.write(text)
@@ -181,10 +186,26 @@ def main():
         run("defaults", "write", "com.hancengiz.macarchy", "displayStyle", "-string", "i3Ordered")
         print(f"App: {installed}")
         print("Quit the existing AeroSpace, then open this app and grant Accessibility access.")
-        print(f"Fork CLI: {installed}/Contents/Helpers/aerospace")
+        print(f"Fork CLI: {installed}/Contents/Helpers/macarchy")
     print(f"Installed: {config}")
     print(f"Backup: {backup}")
-    print(f"Restore: python3 omarchy/install.py --restore {backup}")
+    print(f"Restore: python3 macarchy/install.py --restore {backup}")
+
+
+
+
+def migrate_legacy_paths(home):
+    """Move pre-rebrand paths (~/.aerospace.toml, ~/.config/aerospace/omarchy)
+    to their macarchy equivalents, preserving user data once."""
+    legacy_config = home / ".aerospace.toml"
+    legacy_helper = home / ".config/aerospace/omarchy"
+    config = home / ".macarchy.toml"
+    helper = home / ".config/macarchy"
+    if legacy_config.exists() and not config.exists():
+        os.replace(legacy_config, config)
+    if legacy_helper.exists() and not helper.exists():
+        helper.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(legacy_helper), str(helper))
 
 
 if __name__ == "__main__":

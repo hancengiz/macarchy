@@ -106,18 +106,18 @@ alt-ctrl-shift-up = 'move-workspace-to-monitor --wrap-around up'
 alt-ctrl-shift-down = 'move-workspace-to-monitor --wrap-around down'
 
 # Launchers and tools use installed macOS apps, with system-app fallbacks.
-alt-enter = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" terminal'
-alt-shift-enter = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" browser'
-alt-shift-f = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" files'
-alt-shift-n = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" editor'
-alt-shift-m = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" music'
-alt-shift-e = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" email'
-alt-shift-o = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" notes'
-alt-shift-a = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" ai'
-alt-shift-c = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" calendar'
-alt-v = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" clipboard'
-alt-space = 'mode omarchy-menu'
-alt-k = 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" hotkeys'
+alt-enter = 'exec-and-forget "$HOME/.config/macarchy/action" terminal'
+alt-shift-enter = 'exec-and-forget "$HOME/.config/macarchy/action" browser'
+alt-shift-f = 'exec-and-forget "$HOME/.config/macarchy/action" files'
+alt-shift-n = 'exec-and-forget "$HOME/.config/macarchy/action" editor'
+alt-shift-m = 'exec-and-forget "$HOME/.config/macarchy/action" music'
+alt-shift-e = 'exec-and-forget "$HOME/.config/macarchy/action" email'
+alt-shift-o = 'exec-and-forget "$HOME/.config/macarchy/action" notes'
+alt-shift-a = 'exec-and-forget "$HOME/.config/macarchy/action" ai'
+alt-shift-c = 'exec-and-forget "$HOME/.config/macarchy/action" calendar'
+alt-v = 'exec-and-forget "$HOME/.config/macarchy/action" clipboard'
+alt-space = 'mode macarchy-menu'
+alt-k = 'exec-and-forget "$HOME/.config/macarchy/action" hotkeys'
 alt-r = 'mode resize'
 alt-shift-esc = 'mode system'
 alt-semicolon = 'mode passthrough'
@@ -136,22 +136,22 @@ esc = 'mode main'
 
 [mode.system.binding]
 alt-shift-esc = 'mode main'
-a = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" audio']
-b = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" bluetooth']
-w = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" network']
-d = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" displays']
-t = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" activity']
-c = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" capture']
-l = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" lock']
-p = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" appearance']
-f = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" wallpaper']
-n = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" notifications']
-r = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" reminders']
-i = ['mode main', 'exec-and-forget "$HOME/.config/aerospace/omarchy/action" idle']
+a = ['mode main', 'exec-and-forget "$HOME/.config/macarchy/action" audio']
+b = ['mode main', 'exec-and-forget "$HOME/.config/macarchy/action" bluetooth']
+w = ['mode main', 'exec-and-forget "$HOME/.config/macarchy/action" network']
+d = ['mode main', 'exec-and-forget "$HOME/.config/macarchy/action" displays']
+t = ['mode main', 'exec-and-forget "$HOME/.config/macarchy/action" activity']
+c = ['mode main', 'exec-and-forget "$HOME/.config/macarchy/action" capture']
+l = ['mode main', 'exec-and-forget "$HOME/.config/macarchy/action" lock']
+p = ['mode main', 'exec-and-forget "$HOME/.config/macarchy/action" appearance']
+f = ['mode main', 'exec-and-forget "$HOME/.config/macarchy/action" wallpaper']
+n = ['mode main', 'exec-and-forget "$HOME/.config/macarchy/action" notifications']
+r = ['mode main', 'exec-and-forget "$HOME/.config/macarchy/action" reminders']
+i = ['mode main', 'exec-and-forget "$HOME/.config/macarchy/action" idle']
 esc = 'mode main'
 
 # All application shortcuts pass through; use the same chord to resume management.
-[mode.omarchy-menu.binding]
+[mode.macarchy-menu.binding]
 alt-space = 'mode main'
 esc = 'mode main'
 

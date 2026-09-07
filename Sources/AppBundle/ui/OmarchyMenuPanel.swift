@@ -2,7 +2,7 @@ import AppKit
 import Common
 import SwiftUI
 
-let omarchyMenuMode = "omarchy-menu"
+let omarchyMenuMode = "macarchy-menu"
 
 @MainActor
 func refreshOmarchyMenu() {
