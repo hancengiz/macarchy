@@ -69,5 +69,18 @@ extension Window {
         bind(to: workspace.floatingWindowsContainer, adaptiveWeight: WEIGHT_AUTO, index: INDEX_BIND_LAST)
     }
 
+    /// When the FOCUSED window closes, focus should move to its nearest tiling
+    /// neighbor (Omarchy semantics) instead of the workspace MRU, which merely
+    /// follows whatever window macOS happens to re-key on close ("first window").
+    /// Must be called while the window is still bound. Nil → keep MRU behavior.
+    @MainActor
+    func focusRedirectionOnClose() -> LiveFocus? {
+        guard focus.windowOrNil == self,
+            let workspace = nodeWorkspace,
+            let neighbor = closeFocusNeighbor()
+        else { return nil }
+        return LiveFocus(windowOrNil: neighbor, workspace: workspace)
+    }
+
     func asMacWindow() -> MacWindow { self as! MacWindow }
 }
