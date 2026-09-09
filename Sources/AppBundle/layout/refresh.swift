@@ -47,6 +47,9 @@ func runHeavyCompleteRefreshSession(
             refreshSystemModePanel()
             try await normalizeLayoutReason()
             if shouldLayoutWorkspaces { try await layoutWorkspaces() }
+            // Covers focus changes not driven by commands (clicks, ⌘-Tab, app
+            // activation): those never pass through the light-session raise.
+            scheduleFloatingWindowsRaise()
         }
     }
     switch res {
@@ -85,14 +88,12 @@ func runLightSession<T>(
 
         if focusBefore != focusAfter {
             focusAfter?.nativeFocus() // syncFocusToMacOs
-            // Hyprland-style layering: after the focused window is raised, put
-            // floating windows back above the tiling layer. nativeFocus enqueues
-            // async AX jobs, so defer the raise to land after them.
+            // Hyprland-style layering (Omarchy): floating windows live above the tiling
+            // layer. nativeFocus enqueues async AX jobs whose activation reorders windows
+            // at unpredictable times, so the raise is coalesced and retried — a single
+            // fixed delay loses the race.
             if !(focusAfter?.isFloating ?? false) {
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(80))
-                    raiseFloatingWindows(workspace: focus.workspace)
-                }
+                scheduleFloatingWindowsRaise()
             }
         }
         if !event.isFocusFollowsMouse { scheduleCancellableCompleteRefreshSession(event) }
@@ -104,8 +105,30 @@ func runLightSession<T>(
 @MainActor
 func raiseFloatingWindows(workspace: Workspace?) {
     guard config.keepFloatingWindowsOnTop, !isUnitTest, let workspace else { return }
-    for window in workspace.floatingWindows where window != focus.windowOrNil {
+    // A focused floating window is already at the top via activation; raising the
+    // other floats would stack them above the focused one.
+    if focus.windowOrNil?.isFloating == true { return }
+    for window in workspace.floatingWindows {
         (window as? MacWindow)?.nativeRaise()
+    }
+}
+
+@MainActor
+private var floatingRaiseTask: Task<(), Never>? = nil
+
+/// Re-raises floating windows after the AppKit z-order settles. App activations
+/// land asynchronously and can arrive after any fixed delay, so the raise retries
+/// with backoff; bursts coalesce (the last call wins).
+@MainActor
+func scheduleFloatingWindowsRaise() {
+    guard config.keepFloatingWindowsOnTop, !isUnitTest else { return }
+    floatingRaiseTask?.cancel()
+    floatingRaiseTask = Task.startUnstructured { @MainActor in
+        for delay: Duration in [.milliseconds(100), .milliseconds(300), .milliseconds(700)] {
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            raiseFloatingWindows(workspace: focus.workspace)
+        }
     }
 }
 
