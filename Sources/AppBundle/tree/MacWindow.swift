@@ -77,6 +77,9 @@ final class MacWindow: Window {
     //                        If you are unsure, it's better to pass `false`
     @MainActor
     func garbageCollect(skipClosedWindowsCache: Bool) {
+        // Must be computed before allWindowsMap removal and unbind: it reads the global
+        // focus (resolved through allWindowsMap) and the dying window's tree position.
+        let closeFocusRedirect = focusRedirectionOnClose()
         if MacWindow.allWindowsMap.removeValue(forKey: windowId) == nil {
             return
         }
@@ -89,10 +92,12 @@ final class MacWindow: Window {
         {
             switch parent.cases {
                 case .tilingContainer, .floatingWindowsContainer, .macosHiddenAppsWindowsContainer, .macosFullscreenWindowsContainer:
-                    let deadWindowFocus = deadWindowWorkspace.toLiveFocus()
+                    let deadWindowFocus = closeFocusRedirect ?? deadWindowWorkspace.toLiveFocus()
                     _ = setFocus(to: deadWindowFocus)
                     // Guard against "Apple Reminders popup" bug: https://github.com/nikitabobko/AeroSpace/issues/201
-                    if focus.windowOrNil?.app.pid != app.pid {
+                    // The neighbor redirect must force native focus: macOS re-keys some window on
+                    // close and the next focus sync would drag focus back to its own pick.
+                    if closeFocusRedirect != nil || focus.windowOrNil?.app.pid != app.pid {
                         // Force focus to fix macOS annoyance with focused apps without windows.
                         //   https://github.com/nikitabobko/AeroSpace/issues/65
                         deadWindowFocus.windowOrNil?.nativeFocus()

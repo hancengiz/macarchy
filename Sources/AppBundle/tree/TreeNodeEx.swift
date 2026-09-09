@@ -109,4 +109,24 @@ extension TreeNode {
                 return nil
         }
     }
+
+    /// Omarchy-style close behavior: the closest tiling neighbor of a closing window.
+    /// Prefers the sibling subtree before it (visually to the left in horizontal
+    /// containers), else the one after it; climbs to the enclosing container when the
+    /// window is alone. Returns nil when there is no tiling sibling at all.
+    func closeFocusNeighbor() -> Window? {
+        var node: TreeNode = self
+        while let parent = node.parent as? TilingContainer {
+            let siblings = parent.children
+            guard let index = siblings.firstIndex(of: node) else { return nil }
+            if index > 0, let before = siblings[index - 1].mostRecentWindowRecursive {
+                return before
+            }
+            if let after = siblings.dropFirst(index + 1).first?.mostRecentWindowRecursive {
+                return after
+            }
+            node = parent
+        }
+        return nil
+    }
 }
