@@ -592,12 +592,31 @@ final class OmarchyMenuStore: ObservableObject {
 
 // MARK: Helpers
 
+/// Locates the shipped omarchy-menu.jsonc without going through `Bundle.module`.
+/// SwiftPM's generated accessor fatalError()s unless the bundle sits at
+/// `Bundle.main.bundleURL/<name>` or at the absolute build path compiled into the
+/// binary; an .app installed after the build directory moved (e.g. the repo was
+/// renamed) satisfies neither and the app died on the first super+space press.
+private func shippedMenuUrl() -> URL? {
+    let bundleName = "AeroSpacePackage_AppBundle.bundle"
+    var candidates: [URL] = []
+    if let resources = Bundle.main.resourceURL {
+        candidates.append(resources.appending(path: bundleName)) // Contents/Resources (install.py, Xcode)
+    }
+    candidates.append(Bundle.main.bundleURL.appending(path: bundleName)) // .app root or next to the executable
+    return candidates
+        .map { $0.appending(path: "Resources/omarchy-menu.jsonc") }
+        .first { FileManager.default.fileExists(atPath: $0.path(percentEncoded: false)) }
+}
+
 private func defaultMenuNodes() -> [OmarchyMenuNode] {
-    guard let url = Bundle.module.url(forResource: "omarchy-menu", withExtension: "jsonc", subdirectory: "Resources"),
+    guard let url = shippedMenuUrl(),
           let raw = try? String(contentsOf: url, encoding: .utf8),
           let nodes = parseMenuJsonc(raw)
     else {
-        check(false, "Shipped omarchy-menu.jsonc is missing or invalid")
+        // The window manager must never die over a missing data file: degrade to
+        // user extension entries plus providers, like a broken user menu does.
+        NSLog("OMARCHY-MENU shipped omarchy-menu.jsonc not found or invalid")
         return []
     }
     return nodes

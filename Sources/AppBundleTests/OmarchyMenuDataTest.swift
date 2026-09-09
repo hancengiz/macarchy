@@ -249,7 +249,7 @@ final class OmarchyMenuDataTest: XCTestCase {
         XCTAssertNil(edgeFocusDirection(mouse: CGPoint(x: 1, y: 10), screenFrame: screen, visibleFrame: visible, otherScreens: []))
     }
 
-    func testSearchResultsKeepProviderRowHandlers() throws {
+    func testSearchResultsKeepProviderRowHandlers() {
         let store = OmarchyMenuStore.shared
         store.nodes = mergeMenuSources(defaults: [
             OmarchyMenuNode(id: "root", label: "Go"),
