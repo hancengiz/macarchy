@@ -57,6 +57,37 @@ open_app() {
     return 1
 }
 
+# Super+Shift+Enter must stay in the focused workspace:
+#   * Chrome window in this workspace → focus it and open a new tab inside it;
+#   * no Chrome window here → new Chrome window, pulled into this workspace.
+# Plain `open <url>` would hop to whatever Space holds Chrome's key window.
+browser() {
+    local url="https://www.google.com"
+    local cli="$HOME/Applications/macarchy.app/Contents/Helpers/macarchy"
+    if ! /usr/bin/open -Ra "Google Chrome" >/dev/null 2>&1; then
+        /usr/bin/open "$url" # No Chrome installed: default browser, old behavior
+        return
+    fi
+    local window_id=""
+    if ws="$("$cli" list-workspaces --focused 2>/dev/null)"; then
+        window_id="$("$cli" list-windows --workspace focused --app-bundle-id com.google.Chrome --format '%{window-id}' 2>/dev/null | head -n1)" || window_id=""
+    fi
+    if [ -n "$window_id" ]; then
+        # The tab goes into a window of THIS workspace; focusing it never switches Spaces.
+        "$cli" focus --window-id "$window_id" >/dev/null 2>&1 || true
+        /usr/bin/osascript - "$url" >/dev/null 2>&1 <<'OSA' || /usr/bin/open "$url"
+on run argv
+    tell application "Google Chrome"
+        activate
+        set URL of (make new tab at end of tabs of front window) to (item 1 of argv)
+    end tell
+end run
+OSA
+    else
+        open_app "Google Chrome"
+    fi
+}
+
 settings() {
     /usr/bin/open "x-apple.systempreferences:$1" || /usr/bin/open -b com.apple.systempreferences
 }
@@ -70,7 +101,7 @@ case "${1:-}" in
             'blacklist=macarchy,AeroSpace'
         ;;
     terminal) open_app Ghostty iTerm WezTerm Terminal ;;
-    browser) /usr/bin/open https://www.google.com ;;
+    browser) browser ;;
     files) /usr/bin/open "$HOME" ;;
     editor) open_app Zed 'Visual Studio Code' TextEdit ;;
     music) open_app Spotify Music ;;
