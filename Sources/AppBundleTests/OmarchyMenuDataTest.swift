@@ -249,6 +249,31 @@ final class OmarchyMenuDataTest: XCTestCase {
         XCTAssertNil(edgeFocusDirection(mouse: CGPoint(x: 1, y: 10), screenFrame: screen, visibleFrame: visible, otherScreens: []))
     }
 
+    func testEdgeFocusDwellFiresOncePerEdgeVisit() {
+        // First tick at the edge records the dwell; second tick fires.
+        var state = edgeFocusDwellStep(dwell: nil, fired: nil, current: .right)
+        XCTAssertNil(state.fire)
+        state = edgeFocusDwellStep(dwell: state.dwell, fired: state.fired, current: .right)
+        XCTAssertEqual(state.fire, .right)
+        // Pointer resting at the same edge must not re-trigger focus.
+        for _ in 0 ..< 10 {
+            state = edgeFocusDwellStep(dwell: state.dwell, fired: state.fired, current: .right)
+            XCTAssertNil(state.fire, "Parked pointer must not keep firing")
+        }
+        // Leaving the edge re-arms; returning requires a fresh dwell before firing.
+        state = edgeFocusDwellStep(dwell: state.dwell, fired: state.fired, current: nil)
+        XCTAssertNil(state.fire)
+        state = edgeFocusDwellStep(dwell: state.dwell, fired: state.fired, current: .right)
+        XCTAssertNil(state.fire)
+        state = edgeFocusDwellStep(dwell: state.dwell, fired: state.fired, current: .right)
+        XCTAssertEqual(state.fire, .right)
+        // Switching straight to the opposite edge fires in that direction.
+        state = edgeFocusDwellStep(dwell: nil, fired: .right, current: .left)
+        XCTAssertNil(state.fire)
+        state = edgeFocusDwellStep(dwell: state.dwell, fired: state.fired, current: .left)
+        XCTAssertEqual(state.fire, .left)
+    }
+
     func testSearchResultsKeepProviderRowHandlers() throws {
         let store = OmarchyMenuStore.shared
         store.nodes = mergeMenuSources(defaults: [

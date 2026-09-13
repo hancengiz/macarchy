@@ -16,6 +16,7 @@ enum MouseEdgeFocusDirection: Equatable {
 enum MouseEdgeFocus {
     static var loop: Task<Void, Never>?
     static var dwellDirection: MouseEdgeFocusDirection?
+    static var firedDirection: MouseEdgeFocusDirection?
     static var enabled = false
 
     static func sync(enabled: Bool) {
@@ -25,7 +26,7 @@ enum MouseEdgeFocus {
         guard enabled, !isUnitTest else { return }
         loop = Task { @MainActor in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(120))
+                try? await Task.sleep(for: .milliseconds(60))
                 guard !Task.isCancelled else { return }
                 tick()
             }
@@ -35,12 +36,14 @@ enum MouseEdgeFocus {
     private static func tick() {
         guard TrayMenuModel.shared.isEnabled, activeMode == mainModeId, !ModifierMouse.isDragging else {
             dwellDirection = nil
+            firedDirection = nil
             return
         }
         let mouse = NSEvent.mouseLocation
         let screens = NSScreen.screens
         guard let screen = screens.first(where: { $0.frame.contains(mouse) }) else {
             dwellDirection = nil
+            firedDirection = nil
             return
         }
         let direction = edgeFocusDirection(
@@ -49,13 +52,11 @@ enum MouseEdgeFocus {
             visibleFrame: screen.visibleFrame,
             otherScreens: screens.filter { $0 != screen }.map(\.frame),
         )
-        // Require the pointer to dwell in the same edge zone for a second tick,
-        // then fire once and wait until the pointer leaves the zone.
-        if let direction, direction == dwellDirection {
-            dwellDirection = nil
-            fire(direction: direction)
-        } else {
-            dwellDirection = direction
+        let step = edgeFocusDwellStep(dwell: dwellDirection, fired: firedDirection, current: direction)
+        dwellDirection = step.dwell
+        firedDirection = step.fired
+        if let toFire = step.fire {
+            fire(direction: toFire)
         }
     }
 
@@ -95,4 +96,22 @@ func edgeFocusDirection(
         return .right
     }
     return nil
+}
+
+/// Pure dwell state machine for one poll tick. The pointer must sit in the same
+/// dead-end edge zone on two consecutive ticks before `fire` is emitted. After
+/// firing, the direction stays `fired` until the pointer leaves that edge zone,
+/// so parking the pointer fires exactly once instead of re-triggering forever.
+func edgeFocusDwellStep(
+    dwell: MouseEdgeFocusDirection?,
+    fired: MouseEdgeFocusDirection?,
+    current: MouseEdgeFocusDirection?
+) -> (dwell: MouseEdgeFocusDirection?, fired: MouseEdgeFocusDirection?, fire: MouseEdgeFocusDirection?) {
+    if let fired, fired == current {
+        return (dwell: nil, fired: fired, fire: nil)
+    }
+    if let current, current == dwell {
+        return (dwell: nil, fired: current, fire: current)
+    }
+    return (dwell: current, fired: nil, fire: nil)
 }
