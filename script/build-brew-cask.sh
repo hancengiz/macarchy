@@ -18,9 +18,9 @@ if test -z "$zip_uri"; then echo "--zip-uri is mandatory" > /dev/stderr; exit 1;
 if test -z "$cask_name"; then echo "--cask-name is mandatory" > /dev/stderr; exit 1; fi
 
 case "$cask_name" in
-    aerospace) conflicts_with_casks="conflicts_with cask: 'aerospace-dev'";;
-    aerospace-dev) conflicts_with_casks="conflicts_with cask: 'aerospace'";;
-    *) echo "Unknown cask name: $cask_name. Allowed cask names: aerospace, aerospace-dev" > /dev/stderr; exit 1;;
+    macarchy) conflicts_with_casks="conflicts_with cask: 'macarchy-dev'";;
+    macarchy-dev) conflicts_with_casks="conflicts_with cask: 'macarchy'";;
+    *) echo "Unknown cask name: $cask_name. Allowed cask names: macarchy, macarchy-dev" > /dev/stderr; exit 1;;
 esac
 
 zip_file=''
@@ -28,7 +28,7 @@ if test -f "$zip_uri"; then
     zip_file=$zip_uri
     zip_uri="file://$(realpath "$zip_file")"
 elif grep -q '^http' <<< "$zip_uri"; then
-    zip_file=/tmp/AeroSpace-tmp.zip
+    zip_file=/tmp/macarchy-tmp.zip
     rm -rf $zip_file
     curl -L "$zip_uri" -o $zip_file
 else
@@ -36,7 +36,7 @@ else
 fi
 sha=$(shasum -a 256 "$zip_file" | awk '{print $1}')
 
-cask_version=':latest' # Prevent 'Not upgrading aerospace, the latest version is already installed'
+cask_version=':latest' # Prevent 'Not upgrading macarchy, the latest version is already installed'
 zip_root_dir="AeroSpace-v$build_version"
 if ! grep -q SNAPSHOT <<< "$build_version"; then
     cask_version="'$build_version'"

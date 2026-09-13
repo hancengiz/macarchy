@@ -98,7 +98,7 @@ final class ConfigCommandTest: XCTestCase {
     func testGetRoot_json() async {
         config.modes = ["main": Mode(bindings: [:])]
         let expectedMap: ConfigMapValue = .map(["mode": .map(["main": .map(["binding": .map([:])])])])
-        let expectedJson = JSONEncoder.aeroSpaceDefault.encodeToString(expectedMap)
+        let expectedJson = JSONEncoder.macarchyDefault.encodeToString(expectedMap)
 
         let result = await parseCommand("config --get . --json").cmdOrDie.run(.defaultEnv, .emptyStdin)
         assertEquals(result.exitCode.rawValue, 0)
@@ -109,7 +109,7 @@ final class ConfigCommandTest: XCTestCase {
     func testGetRoot_keysJson() async {
         config.modes = ["main": Mode(bindings: [:])]
         // --keys converts the map into an array of string-scalar keys, which is then JSON-encoded.
-        let expected = JSONEncoder.aeroSpaceDefault.encodeToString(
+        let expected = JSONEncoder.macarchyDefault.encodeToString(
             ConfigMapValue.array([.scalar(.string("mode"))]),
         )
 

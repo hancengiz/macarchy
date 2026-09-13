@@ -364,7 +364,7 @@ func keybindingsProviderRows(bindings: [String: HotkeyBinding]) -> [OmarchyMenuR
                 isDisabled: false,
                 isChecked: false,
                 handler: {
-                    NSLog("OMARCHY-MENU handler start: \(binding.descriptionWithKeyNotation)")
+                    NSLog("MACARCHY-MENU handler start: \(binding.descriptionWithKeyNotation)")
                     Task.startUnstructured {
                         broadcastEvent(.bindingTriggered(mode: mainModeId, binding: binding.descriptionWithKeyNotation))
                         // The menu panel just resigned key focus; give macOS a beat to
@@ -376,14 +376,14 @@ func keybindingsProviderRows(bindings: [String: HotkeyBinding]) -> [OmarchyMenuR
                                 await binding.commands.run(.defaultEnv, CmdIoImpl.emptyStdinIgnoringOut)
                             }
                             if exitCode.rawValue == 0 {
-                                NSLog("OMARCHY-MENU binding fired on attempt \(attempt): \(binding.descriptionWithKeyNotation)")
+                                NSLog("MACARCHY-MENU binding fired on attempt \(attempt): \(binding.descriptionWithKeyNotation)")
                                 return
                             }
                             try? await Task.sleep(for: .milliseconds(250))
                         }
-                        NSLog("OMARCHY-MENU binding FAILED after retries: \(binding.descriptionWithKeyNotation)")
+                        NSLog("MACARCHY-MENU binding FAILED after retries: \(binding.descriptionWithKeyNotation)")
                     }
-                    NSLog("OMARCHY-MENU handler task scheduled: \(binding.descriptionWithKeyNotation)")
+                    NSLog("MACARCHY-MENU handler task scheduled: \(binding.descriptionWithKeyNotation)")
                 },
             )
         }

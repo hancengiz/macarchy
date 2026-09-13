@@ -43,6 +43,37 @@ final class ScrollingLayoutTest: XCTestCase {
         XCTAssertTrue(focus.workspace === workspace)
     }
 
+    func testSizesSurviveScrollingTilesRoundTrip() async throws {
+        let workspace = focus.workspace
+        let root = workspace.rootTilingContainer
+        let windows = (1 ... 3).map { TestWindow.new(id: UInt32($0), parent: root) }
+        XCTAssertTrue(windows[0].focusWindow())
+        root.layout = .scrolling
+        try await workspace.layoutWorkspace()
+
+        // Widen the focused column; the other two keep the default width
+        _ = await parseCommand("resize width +200").cmdOrDie.run(.defaultEnv, .emptyStdin)
+        try await workspace.layoutWorkspace()
+        let scrollingWidths = windows.map { try XCTUnwrap($0.lastAppliedLayoutPhysicalRect).width }
+        XCTAssertEqual(scrollingWidths[1], scrollingWidths[2], accuracy: 0.1)
+        XCTAssertGreaterThan(scrollingWidths[0], scrollingWidths[1])
+
+        // Switching to tiles must carry the proportions over instead of equalizing
+        _ = await parseCommand("layout --root h_tiles").cmdOrDie.run(.defaultEnv, .emptyStdin)
+        try await workspace.layoutWorkspace()
+        let tilesWidths = windows.map { try XCTUnwrap($0.lastAppliedLayoutPhysicalRect).width }
+        XCTAssertEqual(tilesWidths[0] / tilesWidths[1], scrollingWidths[0] / scrollingWidths[1], accuracy: 0.02)
+        XCTAssertEqual(tilesWidths[1], tilesWidths[2], accuracy: 0.1)
+
+        // And back to scrolling: proportions are preserved (absolute widths of an
+        // offscreen tape cannot map into an equal-extent tiles row and back)
+        _ = await parseCommand("layout --root scrolling").cmdOrDie.run(.defaultEnv, .emptyStdin)
+        try await workspace.layoutWorkspace()
+        let restoredWidths = windows.map { try XCTUnwrap($0.lastAppliedLayoutPhysicalRect).width }
+        XCTAssertEqual(restoredWidths[0] / restoredWidths[1], scrollingWidths[0] / scrollingWidths[1], accuracy: 0.02)
+        XCTAssertEqual(restoredWidths[1], restoredWidths[2], accuracy: 0.1)
+    }
+
     func testProfileAndColumnWidthValidation() throws {
         let url = projectRoot.appending(path: "docs/config-examples/omarchy.toml")
         let parsed = parseConfig(try String(contentsOf: url, encoding: .utf8))

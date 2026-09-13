@@ -11,8 +11,26 @@ end run
 OSA
 }
 
+app_installed() {
+    # Resolve the app without launching or activating it; `open -a` focuses an
+    # existing window and would drag the user to another workspace.
+    /usr/bin/osascript -e "id of app \"$1\"" >/dev/null 2>&1
+}
+
 open_new_window() {
     # macOS `open -a` only focuses a running app; Omarchy's launchers open a NEW window.
+    case "$1" in
+        iTerm|iTerm2)
+            # iTerm2 creates the window directly via AppleScript: the new window
+            # becomes key on the focused workspace without first activating (and
+            # focusing) an existing window on another workspace. Also launches
+            # the app with one window when it is not running.
+            /usr/bin/osascript -e 'tell application "iTerm" to create window with default profile' \
+                >/dev/null 2>&1 && return 0
+            ;;
+    esac
+    # Generic fallback: only meaningful for an already-running app.
+    /usr/bin/osascript -e "tell application \"System Events\" to (exists process \"$1\")" >/dev/null 2>&1 || return 1
     /usr/bin/osascript - "$1" >/dev/null 2>&1 <<'OSA' || return 1
 on run argv
     tell application (item 1 of argv) to activate
@@ -23,7 +41,7 @@ OSA
 
 open_app() {
     # Activating a running app focuses its existing window first, which would make
-    # AeroSpace adopt the new window into the OLD window's workspace. Remember the
+    # macarchy adopt the new window into the OLD window's workspace. Remember the
     # focused workspace before activating and pull the new window back into it.
     local cli="$HOME/Applications/macarchy.app/Contents/Helpers/macarchy"
     local ws
@@ -31,27 +49,24 @@ open_app() {
     local before
     before="$("$cli" list-windows --all 2>/dev/null | awk -F' \\| ' '{print $1}' | sort)"
     for app in "$@"; do
-        if /usr/bin/open -Ra "$app" >/dev/null 2>&1; then
-            local running
-            running="$(/usr/bin/osascript -e "tell application \"System Events\" to (exists process \"$app\")" 2>/dev/null)"
-            if [ "$running" = "true" ] && open_new_window "$app"; then
-                :
-            else
-                /usr/bin/open -a "$app"
-            fi
-            if [ -n "$ws" ]; then
-                local new=""
-                for _ in 1 2 3 4 5 6 7 8; do
-                    sleep 0.25
-                    new="$(comm -13 <(printf '%s\n' "$before") <("$cli" list-windows --all 2>/dev/null | awk -F' \\| ' '{print $1}' | sort))"
-                    [ -n "$new" ] && break
-                done
-                for id in $new; do
-                    "$cli" move-node-to-workspace --focus-follows-window --window-id "$id" "$ws" 2>/dev/null || break
-                done
-            fi
-            return
+        if ! app_installed "$app"; then
+            continue
         fi
+        if ! open_new_window "$app"; then
+            /usr/bin/open -a "$app"
+        fi
+        if [ -n "$ws" ]; then
+            local new=""
+            for _ in 1 2 3 4 5 6 7 8; do
+                sleep 0.25
+                new="$(comm -13 <(printf '%s\n' "$before") <("$cli" list-windows --all 2>/dev/null | awk -F' \\| ' '{print $1}' | sort))"
+                [ -n "$new" ] && break
+            done
+            for id in $new; do
+                "$cli" move-node-to-workspace --focus-follows-window --window-id "$id" "$ws" 2>/dev/null || break
+            done
+        fi
+        return
     done
     notify "No installed app found: $*"
     return 1
@@ -59,6 +74,18 @@ open_app() {
 
 settings() {
     /usr/bin/open "x-apple.systempreferences:$1" || /usr/bin/open -b com.apple.systempreferences
+}
+
+terminal_apps() {
+    # macOS has no system-wide "default terminal" setting. Pin yours in
+    # ~/.config/macarchy/terminal (space-separated app names, first installed
+    # wins); otherwise the ordered fallback below applies (Ghostty first,
+    # matching Omarchy).
+    local pinned=""
+    if [ -f "$omarchy_dir/terminal" ]; then
+        pinned="$(grep -v '^[[:space:]]*#' "$omarchy_dir/terminal" | tr '\n' ' ' | xargs)"
+    fi
+    printf '%s\n' "${pinned:-Ghostty iTerm WezTerm Terminal}"
 }
 
 case "${1:-}" in
@@ -69,7 +96,10 @@ case "${1:-}" in
             inactive_color=0xaa595959 background_color=0x00000000 \
             'blacklist=macarchy,AeroSpace'
         ;;
-    terminal) open_app Ghostty iTerm WezTerm Terminal ;;
+    terminal)
+        IFS=' ' read -r -a term_apps <<< "$(terminal_apps)"
+        open_app "${term_apps[@]}"
+        ;;
     browser) /usr/bin/open https://www.google.com ;;
     files) /usr/bin/open "$HOME" ;;
     editor) open_app Zed 'Visual Studio Code' TextEdit ;;

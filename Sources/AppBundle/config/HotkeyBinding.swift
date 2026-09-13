@@ -43,6 +43,17 @@ extension HotKey {
             conflicts.append(ShortcutConflict(mode: mode, binding: notation, reason: reason))
             continue
         }
+        // App-level collisions are advisory: keep the binding registered, but
+        // surface the collision and a remap suggestion in the notice.
+        if checkConflicts,
+           let reason = appShortcutConflict(
+               combo: KeyCombo(key: binding.keyCode, modifiers: binding.modifiers),
+               bindingNotation: notation,
+               installed: { NSWorkspace.shared.urlsForApplications(withBundleIdentifier: $0).count > 0 },
+           )
+        {
+            conflicts.append(ShortcutConflict(mode: mode, binding: notation, reason: reason, advisory: true))
+        }
         allowed.insert(binding.descriptionWithKeyCode)
         if hotkeys.keys.contains(binding.descriptionWithKeyCode) { continue }
         hotkeys[binding.descriptionWithKeyCode] = HotKey(key: binding.keyCode, modifiers: binding.modifiers, keyDownHandler: {

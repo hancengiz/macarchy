@@ -1,0 +1,47 @@
+= macarchy-toggle-split(1)
+include::util/man-attributes.adoc[]
+:manname: macarchy-toggle-split
+// tag::purpose[]
+:manpurpose: Choose the split direction for the next new window
+// end::purpose[]
+
+// =========================================================== Synopsis
+== Synopsis
+[verse]
+// tag::synopsis[]
+macarchy toggle-split [-h|--help] [--window-id <window-id>] (horizontal|vertical|opposite)
+
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+Mimics Omarchy (Hyprland `togglesplit`) semantics: the command arms a split
+direction on the focused window instead of restructuring the tree immediately.
+The next window that appears in the workspace is wrapped together with the
+focused window into an opposite-orientation tiling container.
+
+This works in every root layout, including `scrolling`: in a scrolling root the
+pair becomes a column of vertically stacked windows.
+
+`opposite` flips the armed direction (or the parent container orientation if
+none is armed yet), so binding the command twice in a row returns to the
+original direction.
+
+Unlike `split`, this command is compatible with
+`enable-normalization-flatten-containers`, because the container is created
+only once the second window exists.
+
+// =========================================================== Options
+include::util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+
+--window-id <window-id>::
+include::./util/window-id-flag-desc.adoc[]
+
+// end::body[]
+
+// =========================================================== Footer
+include::util/man-footer.adoc[]

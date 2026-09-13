@@ -1,4 +1,4 @@
-// FILE IS GENERATED FROM docs/aerospace-*.adoc files
+// FILE IS GENERATED FROM docs/macarchy-*.adoc files
 // TO REGENERATE THE FILE RUN generate.sh
 
 let balance_sizes_help_generated = """
@@ -28,7 +28,7 @@ let enable_help_generated = """
        OR: enable [-h|--help] off [--fail-if-noop]
     """
 let eval_help_generated = """
-    USAGE: eval [-h|--help] [--stdin] [--] <aerospace-shell-expr>
+    USAGE: eval [-h|--help] [--stdin] [--] <macarchy-shell-expr>
     """
 let exec_and_forget_help_generated = """
     USAGE: exec-and-forget <bash-script>
@@ -163,6 +163,9 @@ let test_not_help_generated = """
 let test_help_generated = """
     USAGE: test [-h|--help] <lhs> = <rhs>
        OR: test [-h|--help] <lhs> ~= <rhs>
+    """
+let toggle_split_help_generated = """
+    USAGE: toggle-split [-h|--help] [--window-id <window-id>] (horizontal|vertical|opposite)
     """
 let trigger_binding_help_generated = """
     USAGE: trigger-binding [-h|--help] --mode <mode-id> [--] <binding>

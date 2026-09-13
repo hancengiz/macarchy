@@ -1,6 +1,6 @@
 public let sponsorshipPrompts = [
-    "AeroSpace is a side project\nSponsor if it helps you",
-    "AeroSpace is built in my free time\nYour support means a lot",
-    "AeroSpace is free and open-source\nYour support matters",
-    "Enjoying AeroSpace?\nYou can help keep it going",
+    "Macarchy is a fork of AeroSpace\nSponsor the upstream project",
+    "AeroSpace is built in free time\nYour support means a lot",
+    "Macarchy is free and open-source\nSupport the AeroSpace upstream",
+    "Enjoying Macarchy?\nConsider sponsoring upstream AeroSpace",
 ]

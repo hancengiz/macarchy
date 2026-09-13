@@ -1,6 +1,6 @@
-= AeroSpace Guide
+= Macarchy Guide
 include::util/site-attributes.adoc[]
-:url-search-for-config: https://github.com/search?q=path%3A*aerospace.toml&type=code
+:url-search-for-config: https://github.com/search?q=path%3A*macarchy.toml&type=code
 
 include::util/header.adoc[]
 
@@ -21,7 +21,7 @@ brew install --cask nikitabobko/tap/aerospace
 ----
 
 *(Optional)* You might need to configure your shell to enable completion provided by homebrew packages: https://docs.brew.sh/Shell-Completion
-AeroSpace provides bash, fish and zsh completions.
+Macarchy provides bash, fish and zsh completions.
 
 You can also install specific previous https://github.com/nikitabobko/homebrew-tap/tree/main/Casks[pinned homebrew Casks versions]:
 [source,bash]
@@ -34,38 +34,38 @@ brew install --cask nikitabobko/tap/aerospace@0.12.0
 
 . Download the latest available zip from https://github.com/nikitabobko/AeroSpace/releases[releases page]
 . Unpack zip
-. Put unpacked `AeroSpace-v$VERSION/AeroSpace.app` to `/Applications`
-. Put unpacked `AeroSpace-v$VERSION/bin/aerospace` anywhere to `$PATH`
-(The step is optional. It is only needed if you want to be able to interact with AeroSpace from CLI)
+. Put unpacked `macarchy-v$VERSION/macarchy.app` to `/Applications`
+. Put unpacked `macarchy-v$VERSION/bin/macarchy` anywhere to `$PATH`
+(The step is optional. It is only needed if you want to be able to interact with Macarchy from CLI)
 
 If you see this message
 
 ----
-"AeroSpace.app" can't be opened because Apple cannot check it for malicious software.
+"macarchy.app" can't be opened because Apple cannot check it for malicious software.
 ----
 
 **Option 1** to resolve the problem
 
 ```
-xattr -d com.apple.quarantine /Applications/AeroSpace.app
+xattr -d com.apple.quarantine /Applications/macarchy.app
 ```
 
 **Option 2** to resolve the problem
 
-. navigate in Finder to `/Applications/AeroSpace.app`
+. navigate in Finder to `/Applications/macarchy.app`
 . Right mouse click
 . Open (yes, it's that stupid)
 
-[#configuring-aerospace]
-== Configuring AeroSpace
+[#configuring-macarchy]
+== Configuring Macarchy
 
 [#config-location]
 === Custom config location
 
-AeroSpace tries to find the custom config in two locations:
+Macarchy tries to find the custom config in two locations:
 
-. `~/.aerospace.toml`
-. `+${XDG_CONFIG_HOME}/aerospace/aerospace.toml+`
+. `~/.macarchy.toml`
+. `+${XDG_CONFIG_HOME}/macarchy/macarchy.toml+`
 (environment variable `XDG_CONFIG_HOME` fallbacks to `~/.config` if the variable is not presented)
 
 If the config is found in more than one location then the ambiguity is reported.
@@ -78,7 +78,7 @@ Please see the following config samples:
 * xref:./goodies.adoc#i3-like-config[i3 like config]
 * {url-search-for-config}[Search for configs by other users on GitHub] for inspiration
 
-AeroSpace uses TOML 1.1.0 format for the config.
+Macarchy uses TOML 1.1.0 format for the config.
 See https://toml.io/en/v1.1.0[TOML spec for more info]
 
 [#default-config]
@@ -87,7 +87,7 @@ See https://toml.io/en/v1.1.0[TOML spec for more info]
 The default config is part of the documentation, it contains all trivial configuration keys with comments.
 Please read the default config!
 Non-trivial configuration options are mentioned further in this guide.
-If no custom config is found, AeroSpace will load the default config.
+If no custom config is found, Macarchy will load the default config.
 
 If the key is omitted in the custom config, it falls back to the value in the default config, unless it's stated otherwise for the specific keys. Namely:
 
@@ -102,7 +102,7 @@ You can bootstrap your custom config by copying the default config from the app 
 
 [source,shell]
 ----
-cp /Applications/AeroSpace.app/Contents/Resources/default-config.toml ~/.aerospace.toml
+cp /Applications/macarchy.app/Contents/Resources/default-config.toml ~/.macarchy.toml
 ----
 
 link:config-examples/default-config.toml[Download default-config.toml]
@@ -117,7 +117,7 @@ include::config-examples/default-config.toml[]
 
 You can create multiple sets of bindings by creating different binding modes.
 When you switch to a different binding mode, all the bindings from the current mode are deactivated, and only the bindings specified in the new mode become active.
-The initial binding mode that AeroSpace starts out with is "main".
+The initial binding mode that Macarchy starts out with is "main".
 
 This feature is absolutely identical to the one
 https://i3wm.org/docs/userguide.html#binding_modes[in i3]
@@ -138,11 +138,11 @@ Working with binding modes consists of two parts:
 [#commands]
 === Commands
 
-Commands are the thing you use to manipulate AeroSpace and query its state.
+Commands are the thing you use to manipulate Macarchy and query its state.
 
 There are two ways on how you can use commands:
 
-. Bind keys to run AeroSpace commands. Example:
+. Bind keys to run Macarchy commands. Example:
 +
 [source,toml]
 ----
@@ -156,7 +156,7 @@ There are two ways on how you can use commands:
 +
 [source,bash]
 ----
-aerospace workspace 1
+macarchy workspace 1
 ----
 
 For the list of available commands see: xref:commands.adoc[]
@@ -164,7 +164,7 @@ For the list of available commands see: xref:commands.adoc[]
 [#shell]
 === Shell
 
-AeroSpace reimplements a small subset of Shell syntax.
+Macarchy reimplements a small subset of Shell syntax.
 Namely, the well-known operators: `;`, `||`, `&&`, `|`, and parenthesis to specify the precedence (listed in the precedence order).
 
 That is what allows you to combine commands and run them in sequence or pipe one into another:
@@ -183,12 +183,12 @@ This Shell-like string is exactly what you pass to the xref:./commands.adoc#eval
 ====
 *(1)* In traditional Shell, `||` and `&&` have the same precedence and are left associative,
 so `foo || bar && baz` parses as `(foo || bar) && baz`.
-AeroSpace's shell syntax diverges from that dubious design decision.
+Macarchy's shell syntax diverges from that dubious design decision.
 
 Instead, it follows the hopefully more intuitive precedence rules, where `&&` operator has bigger binding power,
 so the very same command above parses as `foo || (bar && baz)`.
 
-*(2)* In AeroSpace, the pipe operator `|` semantic matches `set -o pipefail` from traditional shells.
+*(2)* In Macarchy, the pipe operator `|` semantic matches `set -o pipefail` from traditional shells.
 ====
 
 [#key-mapping]
@@ -209,7 +209,7 @@ key-mapping.key-notation-to-key-code = {
     alt-unicorn = 'workspace wonderland' # (⁀ᗢ⁀)
 ----
 
-* For `dvorak` and `colemak` users, AeroSpace offers preconfigured presets.
+* For `dvorak` and `colemak` users, Macarchy offers preconfigured presets.
 +
 [source,toml]
 ----
@@ -219,7 +219,7 @@ key-mapping.preset = 'dvorak'  # or 'colemak'
 [#config-version]
 === config-version
 
-`config-version` is a mechanism for introducing breaking changes to AeroSpace.
+`config-version` is a mechanism for introducing breaking changes to Macarchy.
 
 Omitting `config-version` is equivalent to `config-version = 1` (the lowest possible version).
 The currently highest possible version is 2.
@@ -239,11 +239,11 @@ By specifying `config-version = 2`, you opt-in to the following behavior:
 [#after-startup-command]
 === after-startup-command
 
-You use `after-startup-command` to run arbitrary commands on AeroSpace startup.
+You use `after-startup-command` to run arbitrary commands on Macarchy startup.
 
 Common use cases:
 
-. Run third-party tool on AeroSpace startup (e.g. Sketchybar)
+. Run third-party tool on Macarchy startup (e.g. Sketchybar)
 . Set default layouts for specific workspaces
 +
 [source,toml]
@@ -259,7 +259,7 @@ after-startup-command = [
 
 You can configure environment variables of `exec-*` commands and callbacks (such as xref:commands.adoc#exec-and-forget[exec-and-forget], <<exec-on-workspace-change-callback>>)
 
-* `exec.inherit-env-vars = true` configures whether inherit environment variables of `AeroSpace.app` or not. (The default is `true`)
+* `exec.inherit-env-vars = true` configures whether inherit environment variables of `macarchy.app` or not. (The default is `true`)
 * You can override env variables with the following syntax:
 +
 [source,toml]
@@ -271,7 +271,7 @@ You can configure environment variables of `exec-*` commands and callbacks (such
 Environment variable substitution is supported in form of `+${ENV_VAR}+`
 * You can inspect what is the end result of environment variables using xref:commands.adoc#list-exec-env-vars[`list-exec-env-vars` command]
 * GUI apps on macOS don’t have Homebrew’s prefix in their `PATH` by default (https://docs.brew.sh/FAQ#my-mac-apps-dont-find-homebrew-utilities[docs.brew.sh]).
-That's why unless you override `exec` section in your config, AeroSpace falls back to the following `exec` configuration:
+That's why unless you override `exec` section in your config, Macarchy falls back to the following `exec` configuration:
 +
 [source,toml]
 ----
@@ -284,13 +284,13 @@ That's why unless you override `exec` section in your config, AeroSpace falls ba
 [#tree]
 == Tree
 
-AeroSpace stores all windows and containers in a tree.
-AeroSpace tree tiling model is https://i3wm.org/docs/userguide.html#tree[inspired by i3].
+Macarchy stores all windows and containers in a tree.
+Macarchy tree tiling model is https://i3wm.org/docs/userguide.html#tree[inspired by i3].
 
 *Definition.* Each non-leaf node is called a "Container"
 
 WARNING: i3 has a different terminology.
-"container" in i3 is the same as "node" in AeroSpace.
+"container" in i3 is the same as "node" in Macarchy.
 
 * Each workspace contains its own single root node
 * Each container can contain arbitrary number of children nodes
@@ -323,7 +323,7 @@ The tree structure can be changed with three commands:
 [#layouts]
 === Layouts
 
-In total, AeroSpace provides 4 possible layouts:
+In total, Macarchy provides 4 possible layouts:
 
 - `h_tiles` horizontal tiles (in i3, it’s called "horizontal split")
 - `v_tiles` vertical tiles (in i3, it’s called "vertical split")
@@ -353,7 +353,7 @@ Accordion padding is configurable via `accordion-padding` option.
 [#normalization]
 === Normalization
 
-By default, AeroSpace does two types of tree normalizations:
+By default, Macarchy does two types of tree normalizations:
 
 . Containers that have only one child are "flattened".
 The root container is an exception, it is allowed to have a single window child.
@@ -435,28 +435,28 @@ Native macOS Spaces have a lot of problems
 * You can’t create/delete/reorder Space and move windows between Spaces with hotkeys (you can only switch between Spaces with hotkeys)
 * Apple doesn't provide public API to communicate with Spaces (create/delete/reorder/switch Space and move windows between Spaces)
 
-Since Spaces are so hard to deal with, AeroSpace reimplements Spaces and calls them "Workspaces".
+Since Spaces are so hard to deal with, Macarchy reimplements Spaces and calls them "Workspaces".
 The idea is that if the workspace isn’t active then all of its windows are placed outside the visible area of the screen, in the bottom right or left corner.
 Once you switch back to the workspace, (e.g. by the means of xref:commands.adoc#workspace[workspace] command, or `cmd + tab`) windows are placed back to the visible area of the screen.
 
-When you quit the AeroSpace or when the AeroSpace detects that it's about to crash, AeroSpace will place all windows back to the visible area of the screen.
+When you quit the Macarchy or when the Macarchy detects that it's about to crash, Macarchy will place all windows back to the visible area of the screen.
 
-AeroSpace shows the name of currently active workspace in its tray icon (top right corner), to give users a visual feedback on what workspace is currently active.
+Macarchy shows the name of currently active workspace in its tray icon (top right corner), to give users a visual feedback on what workspace is currently active.
 
-The intended workflow of using AeroSpace workspaces is to only have one macOS Space (or as many monitors you have, if `Displays have separate Spaces` is enabled) and don’t interact with macOS Spaces anymore.
+The intended workflow of using Macarchy workspaces is to only have one macOS Space (or as many monitors you have, if `Displays have separate Spaces` is enabled) and don’t interact with macOS Spaces anymore.
 
 [NOTE]
 ====
 For better or worse, macOS doesn’t allow to place windows outside the visible area entirely.
 You will still be able to see a 1 pixel vertical line of "hidden" windows in the bottom right or left corner of your screen.
-That means, that if AeroSpace crashes badly you will still be able to manually "unhide" the windows by dragging these few pixels to the center of the screen.
+That means, that if Macarchy crashes badly you will still be able to manually "unhide" the windows by dragging these few pixels to the center of the screen.
 
 If you want to minimize the visibility of hidden windows, it's recommended to place Dock in the bottom (and additionally turn automatic hiding on)
 ====
 
 === Proper monitor arrangement
 
-Since AeroSpace needs a free space to hide windows in,
+Since Macarchy needs a free space to hide windows in,
 please make sure to arrange monitors in a way where *every monitor has free space in the bottom right or left corner.* (`System Settings -> Displays -> Arrange...`)
 
 If you fail to arrange your monitors properly, you will see parts of hidden windows on other monitors.
@@ -476,7 +476,7 @@ image::./assets/monitor-arrangement-2-good.svg[,,align="center"]
 [#a-note-on-mission-control]
 === A note on mission control
 
-For some reason, mission control doesn't like that AeroSpace puts a lot of windows in the bottom right corner of the screen.
+For some reason, mission control doesn't like that Macarchy puts a lot of windows in the bottom right corner of the screen.
 Mission control shows windows too small even when there is enough space to show them bigger.
 
 There is a workaround. You can enable `Group windows by application` setting:
@@ -498,7 +498,7 @@ People report all sorts of weird issues related to focus and performance when th
 * macOS randomly switches focus back: https://github.com/nikitabobko/AeroSpace/issues/289[#289]
 
 When `Displays have separate Spaces` is enabled,
-moving windows between monitors causes windows to move between different Spaces which is not correctly handled by the public APIs AeroSpace uses,
+moving windows between monitors causes windows to move between different Spaces which is not correctly handled by the public APIs Macarchy uses,
 apparently, these APIs are not aware about Spaces existence.
 Spaces are just cursed in macOS. The less Spaces you have, the better macOS behaves.
 
@@ -511,7 +511,7 @@ Spaces are just cursed in macOS. The less Spaces you have, the better macOS beha
 
 |Overall stability and performance
 |❌ Weird focus and performance issues may happen (see the list above)
-|👍 Public Apple API are more stable (which in turn affects AeroSpace stability)
+|👍 Public Apple API are more stable (which in turn affects Macarchy stability)
 
 |When the first monitor is in fullscreen
 |👍 Second monitor operates independently
@@ -554,10 +554,10 @@ on-window-detected = [
 Every object has `if` (optional) and `run` (mandatory) keys inside.
 When a new window is detected:
 
-. AeroSpace processes the list of the callback objects in the defined order.
-. For every callback object, AeroSpace runs the command in the `if`.
-. If the `if` command exits with zero exit code (successful), then AeroSpace runs the command in the `run` and doesn't process any further callback objects.
-. If the `if` command exits with non-zero exit code (fail), then AeroSpace attempts processing the next object in the list.
+. Macarchy processes the list of the callback objects in the defined order.
+. For every callback object, Macarchy runs the command in the `if`.
+. If the `if` command exits with zero exit code (successful), then Macarchy runs the command in the `run` and doesn't process any further callback objects.
+. If the `if` command exits with non-zero exit code (fail), then Macarchy attempts processing the next object in the list.
 
 xref:./commands.adoc#test[test], xref:./commands.adoc#test-not[test-not], xref:./commands.adoc#true[true] and xref:./commands.adoc#false[false] commands are designed to be used inside the `if`.
 
@@ -581,7 +581,7 @@ A common use case is to match against app bundle ID in `on-window-detected` call
 There are several ways to know `app-bundle-id`:
 
 * Take a look at precompiled xref:./goodies.adoc#popular-apps-ids[list of Apple application IDs]
-* You can use xref:./commands.adoc#list-apps[`aerospace list-apps`] CLI command to get IDs of running applications
+* You can use xref:./commands.adoc#list-apps[`macarchy list-apps`] CLI command to get IDs of running applications
 * `mdls -name kMDItemCFBundleIdentifier -r /Applications/App.app`
 
 IMPORTANT: Some windows initialize their title after the window appears.
@@ -649,7 +649,7 @@ It may be useful for integrating with bars.
 ----
 # Notify Sketchybar about workspace change
 exec-on-workspace-change = ['/bin/bash', '-c',
-    'sketchybar --trigger aerospace_workspace_change FOCUSED=$AEROSPACE_FOCUSED_WORKSPACE'
+    'sketchybar --trigger macarchy_workspace_change FOCUSED=$AEROSPACE_FOCUSED_WORKSPACE'
 ]
 ----
 
@@ -659,12 +659,12 @@ Besides the <<exec-env-vars,`exec.env-vars`>>, the process has access to the fol
 * `AEROSPACE_PREV_WORKSPACE` - the workspace user switched from
 
 For a more elaborate example on how to integrate with Sketchybar see
-xref:./goodies.adoc#show-aerospace-workspaces-in-sketchybar[]
+xref:./goodies.adoc#show-macarchy-workspaces-in-sketchybar[]
 
 [#environment-variables]
 == Environment variables
 
-When AeroSpace runs a callback's command (such as the `test`/`run` clause of an <<on-window-detected-callback>>, or the command in an <<on-focus-changed-callbacks>>),
+When Macarchy runs a callback's command (such as the `test`/`run` clause of an <<on-window-detected-callback>>, or the command in an <<on-focus-changed-callbacks>>),
 it adds one of the following environment variables to the command's environment to identify the target the callback fired against:
 
 * `AEROSPACE_WINDOW_ID` - the numeric ID of a specific window
@@ -695,9 +695,9 @@ on-window-detected = [
     #      command inherits the same AEROSPACE_WINDOW_ID as the first.
     { if = 'true', run = 'move-node-to-workspace 2; layout floating' },
 
-    # 'aerospace move-node-to-workspace W' moves the *newly detected* window,
+    # 'macarchy move-node-to-workspace W' moves the *newly detected* window,
     # because the child shell inherits AEROSPACE_WINDOW_ID pointing at it.
-    { if = 'true', run = 'exec-and-forget sleep 1; aerospace move-node-to-workspace W' },
+    { if = 'true', run = 'exec-and-forget sleep 1; macarchy move-node-to-workspace W' },
 ]
 ----
 
@@ -726,8 +726,8 @@ The showed workspaces are called "visible" workspaces
 
 When you switch to a workspace:
 
-. AeroSpace takes the assigned monitor of the workspace and makes the workspace visible on the monitor
-. AeroSpace focuses the workspace
+. Macarchy takes the assigned monitor of the workspace and makes the workspace visible on the monitor
+. Macarchy focuses the workspace
 
 You can move workspace to a different monitor with xref:commands.adoc#move-workspace-to-monitor[move-workspace-to-monitor] command.
 
@@ -737,11 +737,11 @@ Thus, using one workspace per secondary monitor and "the rest" on the main monit
 
 [NOTE]
 ====
-The only difference between AeroSpace and i3 is switching to empty workspaces.
-When you switch to an empty workspace, AeroSpace puts the workspace on an assigned monitor; i3 puts the workspace on currently active monitor.
+The only difference between Macarchy and i3 is switching to empty workspaces.
+When you switch to an empty workspace, Macarchy puts the workspace on an assigned monitor; i3 puts the workspace on currently active monitor.
 
-* I find that AeroSpace model works better with <<observation,_the observation_>> listed above.
-* AeroSpace model is more consistent (it works the same for empty workspaces and non-empty workspaces)
+* I find that Macarchy model works better with <<observation,_the observation_>> listed above.
+* Macarchy model is more consistent (it works the same for empty workspaces and non-empty workspaces)
 ====
 
 [#assign-workspaces-to-monitors]
@@ -785,15 +785,15 @@ xref:commands.adoc#move-workspace-to-monitor[move-workspace-to-monitor] command 
 Even some Apple dialogs don't implement the API properly.
 (E.g. Finder "Copy" progress window doesn't let others know that it's a dialog)
 
-AeroSpace uses the API to gently ask windows whether they are dialogs, but AeroSpace also applies some heuristics.
+Macarchy uses the API to gently ask windows whether they are dialogs, but Macarchy also applies some heuristics.
 
 For example, windows without a fullscreen button (NB! fullscreen button and maximize button are different buttons) are generally considered dialogs, excluding terminal apps (WezTerm, Alacritty, iTerm2, etc.).
 
 Windows that are recognized as dialogs are floated by default.
 
 If you find that some windows are not handled properly, you're welcome to create a PR that improves the heuristic.
-It's fine to hardcode special handling for popular applications, AeroSpace already does it.
-Please see `isDialogHeuristic` function in AeroSpace sources.
+It's fine to hardcode special handling for popular applications, Macarchy already does it.
+Please see `isDialogHeuristic` function in Macarchy sources.
 
 You can also use `on-window-detected` to force tile or force float all windows of a particular application:
 
@@ -820,23 +820,23 @@ on-window-detected = [
 
 == Common pitfall: keyboard keys handling
 
-If you can't make AeroSpace handle some keys in your config, please make sure that you don't have keys conflict with other software that might listen to global keys (e.g. skhd, Karabiner-Elements, Raycast)
+If you can't make Macarchy handle some keys in your config, please make sure that you don't have keys conflict with other software that might listen to global keys (e.g. skhd, Karabiner-Elements, Raycast)
 
 [#socket-protocol]
 == Socket protocol
 
-This section documents the client-server socket protocol that the `aerospace` CLI uses to talk to the running `AeroSpace.app` server.
-It is intended for people who want to integrate with AeroSpace from a custom client (e.g. a status bar, an editor plugin, a script in a language without an `aerospace` wrapper).
+This section documents the client-server socket protocol that the `macarchy` CLI uses to talk to the running `macarchy.app` server.
+It is intended for people who want to integrate with Macarchy from a custom client (e.g. a status bar, an editor plugin, a script in a language without a `macarchy` wrapper).
 
 [#socket-location]
 === Socket location
 
-AeroSpace listens on a Unix-domain stream socket:
+Macarchy listens on a Unix-domain stream socket:
 
 [source]
 ----
-/tmp/bobko.aerospace-${USER}.sock        # AeroSpace.app (release builds)
-/tmp/bobko.aerospace.debug-${USER}.sock  # AeroSpace-Debug.app (debug builds only)
+/tmp/com.hancengiz.macarchy-${USER}.sock        # macarchy.app (release builds)
+/tmp/com.hancengiz.macarchy.debug-${USER}.sock  # macarchy-Debug.app (debug builds only)
 ----
 
 `${USER}` is the result of `NSUserName()` in Swift (typically equivalent to `$USER` / `id -un` / `whoami` in shell).
@@ -845,7 +845,7 @@ AeroSpace listens on a Unix-domain stream socket:
 === Wire format
 
 All numbers on the wire are 4-byte unsigned integers in host byte order.
-AeroSpace only runs on Apple Silicon and Intel macOS, both little-endian, so in practice the framing is always 4 bytes, little-endian.
+Macarchy only runs on Apple Silicon and Intel macOS, both little-endian, so in practice the framing is always 4 bytes, little-endian.
 
 Immediately after connecting, both sides perform a *one-shot handshake*:
 
@@ -900,8 +900,8 @@ The request payload is a JSON object with the following fields:
 
 | `args`
 | array of strings
-| The CLI arguments as you would pass them to `aerospace`, *excluding* the program name itself.
-For example, `["workspace", "1"]` is the wire form of `aerospace workspace 1`.
+| The CLI arguments as you would pass them to `macarchy`, *excluding* the program name itself.
+For example, `["workspace", "1"]` is the wire form of `macarchy workspace 1`.
 To send the `subscribe` command, pass `["subscribe", ...]` here.
 
 | `stdin`
@@ -913,7 +913,7 @@ Some commands (e.g. xref:./commands.adoc#workspace[`workspace --stdin`]) consume
 | `windowId`
 | unsigned 32-bit integer or `null`
 | The value of the `AEROSPACE_WINDOW_ID` environment variable as the client saw it, or `null` if there is no such variable in scope.
-AeroSpace sets this variable when invoking callbacks so that the called commands know the window they was triggered from (see <<environment-variables>>).
+Macarchy sets this variable when invoking callbacks so that the called commands know the window they was triggered from (see <<environment-variables>>).
 
 | `workspace`
 | string or `null`
@@ -941,7 +941,7 @@ The reply to a one-shot command is a JSON object:
 
 | `exitCode`
 | signed 32-bit integer
-| `0` on success, non-zero on failure. Mirrors what the `aerospace` CLI would have exited with.
+| `0` on success, non-zero on failure. Mirrors what the `macarchy` CLI would have exited with.
 
 | `stdout`
 | string
@@ -959,21 +959,21 @@ The reply to a one-shot command is a JSON object:
 [#socket-subscribe]
 === Subscribe mode
 
-When the client sends a request with `args` starting with `"subscribe"`, the server enters event-streaming mode. The remaining `args` follow the same syntax as the xref:./commands.adoc#subscribe[`aerospace subscribe`] CLI command (`--all`, `--no-send-initial`, or an explicit list of event types).
+When the client sends a request with `args` starting with `"subscribe"`, the server enters event-streaming mode. The remaining `args` follow the same syntax as the xref:./commands.adoc#subscribe[`macarchy subscribe`] CLI command (`--all`, `--no-send-initial`, or an explicit list of event types).
 
 After accepting the subscription, the server writes framed JSON objects in the same length-prefixed format as `ServerAnswer`. The server keeps writing until the connection is closed.
 
 [#socket-example]
 === End-to-end example
 
-A minimal Python client that runs `aerospace list-workspaces --focused`:
+A minimal Python client that runs `macarchy list-workspaces --focused`:
 
 [source,python]
 ----
 import getpass, json, socket, struct
 
 SOCKET_PROTOCOL_VERSION = 1
-sock_path = f"/tmp/bobko.aerospace-{getpass.getuser()}.sock"
+sock_path = f"/tmp/com.hancengiz.macarchy-{getpass.getuser()}.sock"
 
 def send_frame(s, payload):
     s.sendall(struct.pack("<I", len(payload)) + payload)

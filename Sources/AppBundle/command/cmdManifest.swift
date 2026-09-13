@@ -86,6 +86,8 @@ extension CmdArgs {
                 command = TestCommand(args: self as! TestCmdArgs)
             case .testNot:
                 command = TestNotCommand(args: self as! TestNotCmdArgs)
+            case .toggleSplit:
+                command = ToggleSplitCommand(args: self as! ToggleSplitCmdArgs)
             case .triggerBinding:
                 command = TriggerBindingCommand(args: self as! TriggerBindingCmdArgs)
             case .volume:

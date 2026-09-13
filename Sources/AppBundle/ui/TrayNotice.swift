@@ -189,7 +189,7 @@ final class TrayNoticePanel: NSPanelHud {
     override private init() {
         super.init()
         title = "Notification"
-        identifier = NSUserInterfaceItemIdentifier("aerospace.tray-notice")
+        identifier = NSUserInterfaceItemIdentifier("macarchy.tray-notice")
         isOpaque = false
         setAccessibilityLabel("Desktop notification")
         screenParamsObserver = NotificationCenter.default.addObserver(
@@ -313,7 +313,7 @@ final class TrayNoticePanel: NSPanelHud {
         }) {
             eventMonitors.append(monitor)
         }
-        // keyDown global monitors require accessibility trust, which AeroSpace already holds.
+        // keyDown global monitors require accessibility trust, which Macarchy already holds.
         // The Escape key is still delivered to the frontmost app; we only observe it.
         if let monitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: { [weak self] event in
             let isEscape = event.keyCode == 53

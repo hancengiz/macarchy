@@ -4,9 +4,7 @@ import ServiceManagement
 
 @MainActor
 func syncStartAtLogin() {
-    #if !OMARCHY
-        cleanupPlistFromPrevVersions()
-    #endif
+    cleanupPlistFromPrevVersions()
     let service = SMAppService.mainApp
     switch true {
         case !config.startAtLogin: _ = try? service.unregister()

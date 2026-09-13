@@ -52,7 +52,7 @@ final class ShortcutConflictsTest: XCTestCase {
         defer { TrayMenuModel.shared.isEnabled = enabled }
         TrayMenuModel.shared.isEnabled = false
         await ShortcutConflicts.shared.recheck()
-        XCTAssertEqual(ShortcutConflicts.shared.checkStatus, "Enable AeroSpace to check shortcuts.")
+        XCTAssertEqual(ShortcutConflicts.shared.checkStatus, "Enable Macarchy to check shortcuts.")
         XCTAssertFalse(ShortcutConflicts.shared.isChecking)
     }
 

@@ -98,7 +98,7 @@ final class ListWorkspacesTest: XCTestCase {
     func testRunJson() async {
         TestWindow.new(id: 1, parent: Workspace.get(byName: "a").rootTilingContainer)
         let result = await parseCommand("list-workspaces --all --format '%{workspace}' --json").cmdOrDie.run(.defaultEnv, .emptyStdin)
-        let expected = JSONEncoder.aeroSpaceDefault.encodeToString([
+        let expected = JSONEncoder.macarchyDefault.encodeToString([
             ["workspace": "a"],
             ["workspace": "setUpWorkspacesForTests"],
         ])

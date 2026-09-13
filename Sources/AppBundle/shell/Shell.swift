@@ -145,7 +145,7 @@ extension Shell where T == any Command {
 }
 
 /// runs commands sequentially, buffering the entire stdout between them and joining with \n before re-feeding as stdin.
-/// For long-running or streaming commands this would matter, but AeroSpace's commands are short and synchronous, so this is fine
+/// For long-running or streaming commands this would matter, but Macarchy's commands are short and synchronous, so this is fine
 ///
 /// The semantics is similar to 'set -o pipefail'
 @MainActor private func runShellPipe(_ commands: [Shell<any Command>], _ env: CmdEnv, _ originalIo: CmdIo) async -> Int32ExitCode {

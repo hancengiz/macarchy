@@ -18,6 +18,7 @@ open class TreeNode: Equatable, AeroAny {
     // - move-mouse command
     // - focus-follows-mouse
     var lastAppliedLayoutPhysicalRect: Rect? = nil // with real inner gaps
+    var nextSplitOrientation: Orientation? = nil
     var scrollingSize: CGFloat? = nil
     final var unboundStacktrace: String? = nil
     var isBound: Bool { parent != nil } // todo drop, once https://github.com/nikitabobko/AeroSpace/issues/1215 is fixed
@@ -153,6 +154,10 @@ struct BindingData {
     let parent: NonLeafTreeNodeObject
     let adaptiveWeight: CGFloat
     let index: Int
+    /// Armed `toggle-split` hint captured while computing the binding data. The
+    /// wrapper is materialized only at the synchronous bind site — see
+    /// `consumeSplitHint`.
+    var splitHint: (window: Window, orientation: Orientation)? = nil
 }
 
 final class NilTreeNode: TreeNode, NonLeafTreeNodeObject {

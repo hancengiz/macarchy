@@ -30,8 +30,8 @@ build-site() {
     cp ./docs/index.html ./.site
 
     cd .site
-        # Delete "aerospace " prefifx in synopsis
-        sed -E -i '' '/tag::synopsis/, /end::synopsis/ s/^(aerospace | {10})//' aerospace*
+        # Delete "macarchy " prefix in synopsis
+        sed -E -i '' '/tag::synopsis/, /end::synopsis/ s/^(macarchy | {10})//' macarchy*
         bundler exec asciidoctor \
             "${adoc_site_args[@]}" \
             ./guide.adoc \
@@ -50,14 +50,14 @@ build-site() {
 build-man() {
     cp-docs .man
     cd .man
-        bundler exec asciidoctor -b manpage aerospace*.adoc
+        bundler exec asciidoctor -b manpage macarchy*.adoc
 
         # Comment by AI:
         #   gman (the g Dai client) renders bare .~ and /~ as ligatures (~ becomes ˜).
         #   We use groff's \[ti] escape (which produces a literal tilde) instead.
         #   Note: escaping .~ in asciidoc via pass:[] doesn't work because asciidoctor
         #   converts \\ to \(rs) before groff sees the input.
-        sed -E -i '' 's|\.~|\.\\[ti]|g; s|/~|/\\[ti]|g' aerospace-test.1
+        sed -E -i '' 's|\.~|\.\\[ti]|g; s|/~|/\\[ti]|g' macarchy-test.1
 
         rm -rf -- *.adoc
     cd - > /dev/null

@@ -1,0 +1,46 @@
+= macarchy-eval(1)
+include::util/man-attributes.adoc[]
+:manname: macarchy-eval
+// tag::purpose[]
+:manpurpose: Send multiple commands to Macarchy at once
+// end::purpose[]
+
+// =========================================================== Synopsis
+== Synopsis
+[verse]
+// tag::synopsis[]
+macarchy eval [-h|--help] [--stdin] [--] <macarchy-shell-expr>
+
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+{manpurpose}
+
+// =========================================================== Options
+include::./util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+
+--stdin::
+Capture CLIs stdin and forward it to `<macarchy-shell-expr>`.
+If not supplied, stdin is ignored.
+
+// =========================================================== Arguments
+include::./util/conditional-arguments-header.adoc[]
+
+<macarchy-shell-expr>:: This argument is Macarchy's shell expression.
+See https://nikitabobko.github.io/AeroSpace/guide#shell for more info.
+
+// =========================================================== Examples
+include::util/conditional-examples-header.adoc[]
+
+* Cycle between workspaces a, b, and c: +
+`macarchy eval 'echo a b c | workspace --wrap-around --stdin next'`
+
+// end::body[]
+
+// =========================================================== Footer
+include::util/man-footer.adoc[]

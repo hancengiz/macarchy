@@ -6,8 +6,8 @@
 //   - Whole-line // comments and trailing commas are allowed; inline comments are NOT.
 //   - Same-id entries merge per field (label, icon, action, ...) and keep their position.
 //   - New ids append. icon = SF Symbol name. action = shell command.
-//   - Reserved in-app actions: aerospace:shortcuts, aerospace:conflicts,
-//     aerospace:reload, aerospace:hotkeys.
+//   - Reserved in-app actions: macarchy:shortcuts, macarchy:conflicts,
+//     macarchy:reload, macarchy:hotkeys.
 //   - "when"/"checked"/"disabled" hold bash conditions; "disabled": "true" hides
 //     nothing but disables the row (0.4 opacity, unselectable).
 //   - "apps" supports an "exclude" list of app names to hide from the Apps submenu.

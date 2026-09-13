@@ -1,0 +1,47 @@
+= macarchy-trigger-binding(1)
+include::util/man-attributes.adoc[]
+:manname: macarchy-trigger-binding
+// tag::purpose[]
+:manpurpose: Trigger Macarchy binding as if it was pressed by user
+// end::purpose[]
+
+// =========================================================== Synopsis
+== Synopsis
+[verse]
+// tag::synopsis[]
+macarchy trigger-binding [-h|--help] --mode <mode-id> [--] <binding>
+
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+{manpurpose}
+
+You can use macarchy-config command to inspect available bindings: +
+`macarchy config --get mode.main.binding --keys`
+
+// =========================================================== Options
+include::util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+--mode <mode-id>:: Mode to search `<binding>` in
+
+// =========================================================== Arguments
+include::util/conditional-arguments-header.adoc[]
+
+<binding>:: Binding to trigger
+
+// =========================================================== Examples
+include::util/conditional-examples-header.adoc[]
+
+* Run alphabetically first binding from config (useless and synthetic example): +
+`macarchy trigger-binding --mode main "$(macarchy config --get mode.main.binding --keys | head -1)"`
+* Trigger `alt-tab` binding: +
+`macarchy trigger-binding --mode main alt-tab`
+
+// end::body[]
+
+// =========================================================== Footer
+include::util/man-footer.adoc[]

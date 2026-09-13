@@ -75,10 +75,10 @@ final class OmarchyMenuPanel: NSPanelHud, NSWindowDelegate {
             return
         }
         if let handler = row.handler {
-            NSLog("OMARCHY-MENU keybinding row chosen: \(row.label)")
+            NSLog("MACARCHY-MENU keybinding row chosen: \(row.label)")
             Task { @MainActor in
                 await activateMode_nonCancellable(mainModeId)
-                NSLog("OMARCHY-MENU mode restored, firing handler: \(row.label)")
+                NSLog("MACARCHY-MENU mode restored, firing handler: \(row.label)")
                 handler()
             }
             return
@@ -91,7 +91,17 @@ final class OmarchyMenuPanel: NSPanelHud, NSWindowDelegate {
             return
         }
         guard let action = row.node?.action else { return }
-        guard action.hasPrefix("aerospace:") else {
+        // "macarchy:" is the reserved-action namespace; "aerospace:" is the
+        // legacy namespace still written by user menus installed before the rebrand.
+        let reservedAction: String?
+        if action.hasPrefix("macarchy:") {
+            reservedAction = action
+        } else if action.hasPrefix("aerospace:") {
+            reservedAction = "macarchy:" + action.dropFirst("aerospace:".count)
+        } else {
+            reservedAction = nil
+        }
+        guard let reservedAction else {
             // Shell actions come only from parsed menu files, never from search text.
             Task { @MainActor in
                 guard let token = RunSessionGuard.isServerEnabled else { return }
@@ -107,7 +117,7 @@ final class OmarchyMenuPanel: NSPanelHud, NSWindowDelegate {
             guard let token = RunSessionGuard.isServerEnabled else { return }
             try await runLightSession(.menuBarButton, token) {
                 await activateMode_nonCancellable(mainModeId)
-                await runReservedMenuAction(action)
+                await runReservedMenuAction(reservedAction)
             }
         }
     }
@@ -116,7 +126,7 @@ final class OmarchyMenuPanel: NSPanelHud, NSWindowDelegate {
 @MainActor
 private func runReservedMenuAction(_ action: String) async {
     switch action {
-        case "aerospace:shortcuts":
+        case "macarchy:shortcuts":
             MessageModel.shared.message = Message(
                 type: .shortcuts,
                 title: "Current Shortcuts",
@@ -124,14 +134,14 @@ private func runReservedMenuAction(_ action: String) async {
                 body: currentShortcutsDescription(config),
                 containsWarnings: false,
             )
-        case "aerospace:conflicts":
+        case "macarchy:conflicts":
             await ShortcutConflicts.shared.recheck()
             ShortcutConflicts.shared.show()
-        case "aerospace:reload":
+        case "macarchy:reload":
             _ = await reloadConfig_nonCancellable(args: ReloadConfigCmdArgs(rawArgs: []))
-        case "aerospace:hotkeys":
+        case "macarchy:hotkeys":
             let url = FileManager.default.homeDirectoryForCurrentUser
-                .appending(path: ".config/aerospace/omarchy/HOTKEYS.txt")
+                .appending(path: ".config/macarchy/HOTKEYS.txt")
             NSWorkspace.shared.open(url)
         default:
             break

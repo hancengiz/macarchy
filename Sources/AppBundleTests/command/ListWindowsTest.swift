@@ -34,7 +34,7 @@ final class ListWindowsTest: XCTestCase {
     }
 
     func testInterpolationVariablesConsistency() {
-        for kind in AeroObjKind.allCases {
+        for kind in FormatObjKind.allCases {
             switch kind {
                 case .window:
                     assertTrue(FormatVar.WindowFormatVar.allCases.allSatisfy { $0.rawValue.starts(with: "window-") })
@@ -51,24 +51,24 @@ final class ListWindowsTest: XCTestCase {
     func testFormat() {
         Workspace.get(byName: name).rootTilingContainer.apply {
             let windows = [
-                AeroObj.window(.forTest(window: TestWindow.new(id: 2, parent: $0), title: "non-empty")),
-                AeroObj.window(.forTest(window: TestWindow.new(id: 1, parent: $0), title: "")),
+                FormatObj.window(.forTest(window: TestWindow.new(id: 2, parent: $0), title: "non-empty")),
+                FormatObj.window(.forTest(window: TestWindow.new(id: 1, parent: $0), title: "")),
             ]
             assertSucc(windows.format([.interVar(.formatVar(.window(.windowTitle)))]), ["non-empty", ""])
         }
 
         Workspace.get(byName: name).rootTilingContainer.apply {
             let windows = [
-                AeroObj.window(.forTest(window: TestWindow.new(id: 2, parent: $0), title: "non-empty")),
-                AeroObj.window(.forTest(window: TestWindow.new(id: 10, parent: $0), title: "")),
+                FormatObj.window(.forTest(window: TestWindow.new(id: 2, parent: $0), title: "non-empty")),
+                FormatObj.window(.forTest(window: TestWindow.new(id: 10, parent: $0), title: "")),
             ]
             assertSucc(windows.format([.interVar(.formatVar(.window(.windowId))), .interVar(.plainInterVar(.rightPadding)), .interVar(.formatVar(.window(.windowTitle)))]), ["2 non-empty", "10"])
         }
 
         Workspace.get(byName: name).rootTilingContainer.apply {
             let windows = [
-                AeroObj.window(.forTest(window: TestWindow.new(id: 2, parent: $0), title: "title1")),
-                AeroObj.window(.forTest(window: TestWindow.new(id: 10, parent: $0), title: "title2")),
+                FormatObj.window(.forTest(window: TestWindow.new(id: 2, parent: $0), title: "title1")),
+                FormatObj.window(.forTest(window: TestWindow.new(id: 10, parent: $0), title: "title2")),
             ]
             assertSucc(windows.format([.interVar(.formatVar(.window(.windowId))), .interVar(.plainInterVar(.rightPadding)), .literal(" | "), .interVar(.formatVar(.window(.windowTitle)))]), ["2  | title1", "10 | title2"])
         }
@@ -114,7 +114,7 @@ final class ListWindowsTest: XCTestCase {
     func testRunJson() async {
         TestWindow.new(id: 7, parent: Workspace.get(byName: "a").rootTilingContainer)
         let result = await parseCommand("list-windows --all --format '%{window-id}' --json").cmdOrDie.run(.defaultEnv, .emptyStdin)
-        let expected = JSONEncoder.aeroSpaceDefault.encodeToString([["window-id": 7]])
+        let expected = JSONEncoder.macarchyDefault.encodeToString([["window-id": 7]])
         assertEquals(result.exitCode.rawValue, 0)
         assertEquals(result.stdout, [expected])
     }
@@ -175,7 +175,7 @@ final class ListWindowsTest: XCTestCase {
 
     func testRunFilterByAppBundleId() async {
         TestWindow.new(id: 1, parent: Workspace.get(byName: "a").rootTilingContainer)
-        let matching = await parseCommand("list-windows --monitor all --app-bundle-id bobko.AeroSpace.test-app --format '%{window-id}'").cmdOrDie.run(.defaultEnv, .emptyStdin)
+        let matching = await parseCommand("list-windows --monitor all --app-bundle-id com.hancengiz.macarchy.test-app --format '%{window-id}'").cmdOrDie.run(.defaultEnv, .emptyStdin)
         assertEquals(matching.exitCode.rawValue, 0)
         assertEquals(matching.stdout, ["1"])
 

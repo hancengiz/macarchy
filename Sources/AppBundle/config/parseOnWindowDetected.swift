@@ -31,7 +31,7 @@ struct LegacyWindowDetectedCallbackMatcher: ConvenienceMutable, Equatable {
     var appNameRegexSubstring: CaseInsensitiveRegex?
     var windowTitleRegexSubstring: CaseInsensitiveRegex?
     var workspace: String?
-    var duringAeroSpaceStartup: Bool?
+    var duringAppStartup: Bool?
 
     var debugJson: Json {
         var resultParts: [String] = []
@@ -47,8 +47,8 @@ struct LegacyWindowDetectedCallbackMatcher: ConvenienceMutable, Equatable {
         if let workspace {
             resultParts.append("workspace=\"\(workspace)\"")
         }
-        if let duringAeroSpaceStartup {
-            resultParts.append("duringAeroSpaceStartup=\(duringAeroSpaceStartup)")
+        if let duringAppStartup {
+            resultParts.append("duringAppStartup=\(duringAppStartup)")
         }
         return .string(resultParts.joined(separator: ", "))
     }
@@ -78,7 +78,7 @@ private let matcherParsers: [String: any ParserProtocol<LegacyWindowDetectedCall
     "workspace": Parser(\.workspace, upcast(parseString)),
     "app-name-regex-substring": Parser(\.appNameRegexSubstring, upcast(parseCasInsensitiveRegex)),
     "window-title-regex-substring": Parser(\.windowTitleRegexSubstring, upcast(parseCasInsensitiveRegex)),
-    "during-aerospace-startup": Parser(\.duringAeroSpaceStartup, upcast(parseBool)),
+    "during-aerospace-startup": Parser(\.duringAppStartup, upcast(parseBool)),
 ]
 
 private func upcast<T>(

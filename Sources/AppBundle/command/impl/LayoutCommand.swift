@@ -99,9 +99,43 @@ struct LayoutCommand: Command {
             if targetLayout == .scrolling && targetOrientation == .v {
                 return .succ(io.err("Scrolling columns stay horizontal. Switch to tiles to toggle split orientation."))
             }
+            let oldLayout = parent.layout
             parent.layout = targetLayout
+            translateChildGeometry(parent: parent, oldLayout: oldLayout)
             parent.changeOrientation(targetOrientation)
             return .succ
+        }
+    }
+
+/// Sizes live in per-layout stores: scrolling uses absolute `scrollingSize`
+/// points, tiles uses relative `adaptiveWeight` points. Convert between the two
+/// on switch so `layout scrolling h_tiles` toggles preserve window proportions
+/// instead of looking like a reset. Call after `parent.layout` is assigned
+/// (`setWeight` is legal only in tiles parents) and before `changeOrientation`.
+@MainActor private func translateChildGeometry(parent: TilingContainer, oldLayout: Layout) {
+    let targetLayout = parent.layout
+    guard oldLayout != targetLayout, [oldLayout, targetLayout].allSatisfy({ $0 == .scrolling || $0 == .tiles }) else {
+        return
+    }
+    guard let rect = parent.lastAppliedLayoutPhysicalRect else { return }
+    let extent = parent.orientation == .h ? rect.width : rect.height
+    guard extent > 0, !parent.children.isEmpty else { return }
+    let defaultSize = extent * CGFloat(config.scrollingColumnWidth) / 100
+    switch (oldLayout, targetLayout) {
+        case (.scrolling, .tiles):
+            let total = CGFloat(parent.children.sumOfDouble { Double($0.scrollingSize ?? defaultSize) } ?? 0)
+            guard total > 0 else { return }
+            for child in parent.children {
+                child.setWeight(parent.orientation, (child.scrollingSize ?? defaultSize) / total * extent)
+            }
+        case (.tiles, .scrolling):
+            let total = CGFloat(parent.children.sumOfDouble { Double($0.getWeight(parent.orientation)) } ?? 0)
+            guard total > 0 else { return }
+            for child in parent.children where child.getWeight(parent.orientation) > 0 {
+                child.scrollingSize = child.getWeight(parent.orientation) / total * extent
+            }
+        default:
+            break // Unreachable: both layouts are guarded to scrolling/tiles
     }
 }
 

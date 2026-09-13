@@ -80,21 +80,21 @@ def build_app():
     if not bash:
         raise SystemExit("Install Bash 5 first: brew install bash")
     run(bash, str(ROOT / "generate.sh"), "--ignore-xcodeproj", "--build-version", "0.22.0-Omarchy", cwd=ROOT)
-    run("swift", "build", "-c", "release", "-Xswiftc", "-DOMARCHY", cwd=ROOT)
+    run("swift", "build", "-c", "release", cwd=ROOT)
     bin_dir = Path(subprocess.check_output(["swift", "build", "-c", "release", "--show-bin-path"], cwd=ROOT, text=True).strip())
     destination = ROOT / ".local" / "macarchy.app"
     contents = destination / "Contents"
     (contents / "MacOS").mkdir(parents=True, exist_ok=True)
     (contents / "Resources").mkdir(exist_ok=True)
     (contents / "Helpers").mkdir(exist_ok=True)
-    shutil.copy2(bin_dir / "AeroSpaceApp", contents / "MacOS" / "AeroSpace")
-    # Default macOS volumes are case-insensitive: AeroSpace and aerospace collide.
-    shutil.copy2(bin_dir / "aerospace", contents / "Helpers" / "macarchy")
+    shutil.copy2(bin_dir / "MacarchyApp", contents / "MacOS" / "macarchy")
+    # Both SPM products would collide with the helper name if copied verbatim.
+    shutil.copy2(bin_dir / "macarchy", contents / "Helpers" / "macarchy")
     shutil.copy2(ROOT / "docs/config-examples/default-config.toml", contents / "Resources" / "default-config.toml")
     for resource in bin_dir.glob("*.bundle"):
         shutil.copytree(resource, contents / "Resources" / resource.name, dirs_exist_ok=True)
     info = {
-        "CFBundleExecutable": "AeroSpace", "CFBundleIdentifier": "com.hancengiz.macarchy",
+        "CFBundleExecutable": "macarchy", "CFBundleIdentifier": "com.hancengiz.macarchy",
         "CFBundleName": "macarchy", "CFBundlePackageType": "APPL",
         "CFBundleShortVersionString": "0.22.0", "CFBundleVersion": "1",
         "LSMinimumSystemVersion": "13.0", "LSUIElement": True,
@@ -137,7 +137,7 @@ def main():
                     shutil.copy2(source, target)
             elif target == config:
                 target.unlink(missing_ok=True)
-        print(f"Restored profile from {backup}. Restart your previous AeroSpace app.")
+        print(f"Restored profile from {backup}. Restart your previous window manager app.")
         return
     text = profile(args.stock, args.leader)
     if args.dry_run:
@@ -185,7 +185,7 @@ def main():
         shutil.copytree(app, installed, dirs_exist_ok=True)
         run("defaults", "write", "com.hancengiz.macarchy", "displayStyle", "-string", "i3Ordered")
         print(f"App: {installed}")
-        print("Quit the existing AeroSpace, then open this app and grant Accessibility access.")
+        print("Quit the existing window manager, then open this app and grant Accessibility access.")
         print(f"Fork CLI: {installed}/Contents/Helpers/macarchy")
     print(f"Installed: {config}")
     print(f"Backup: {backup}")

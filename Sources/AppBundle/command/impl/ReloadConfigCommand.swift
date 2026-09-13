@@ -58,7 +58,7 @@ struct ReloadConfigResult {
         syncFocusFollowsMouse(config)
         MouseEdgeFocus.sync(enabled: config.enableMouseEdgeFocus)
         if !syncModifierMouse(config) {
-            let warning = "Could not enable modifier mouse gestures. Check AeroSpace Accessibility permission, then reload config."
+            let warning = "Could not enable modifier mouse gestures. Check Macarchy Accessibility permission, then reload config."
             warnings.append(warning)
             TrayMenuModel.shared.lastReloadConfigContainedWarnings = true
             if !args.noGui { postModifierMouseWarningNotice(warning: warning) }

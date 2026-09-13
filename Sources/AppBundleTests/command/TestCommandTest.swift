@@ -122,7 +122,7 @@ final class TestCommandTest: XCTestCase {
         }
 
         assertEquals(
-            await parseCommand("test %{app-bundle-id} = bobko.AeroSpace.test-app").cmdOrDie.run(.defaultEnv, .emptyStdin),
+            await parseCommand("test %{app-bundle-id} = com.hancengiz.macarchy.test-app").cmdOrDie.run(.defaultEnv, .emptyStdin),
             CmdResult(stdout: [], stderr: [], exitCode: Int32ExitCode(rawValue: 0)),
         )
 

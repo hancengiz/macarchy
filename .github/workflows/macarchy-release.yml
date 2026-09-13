@@ -18,13 +18,13 @@ jobs:
 
       - name: Build release app
         run: |
-          swift build -c release -Xswiftc -DOMARCHY
+          swift build -c release
           BIN="$(swift build -c release --show-bin-path)"
           DEST="macarchy.app/Contents"
           mkdir -p "$DEST/MacOS" "$DEST/Resources" "$DEST/Helpers"
           # Default macOS volumes are case-insensitive: the app and CLI binaries collide in one dir.
-          cp "$BIN/AeroSpaceApp" "$DEST/MacOS/AeroSpace"
-          cp "$BIN/aerospace" "$DEST/Helpers/aerospace"
+          cp "$BIN/MacarchyApp" "$DEST/MacOS/macarchy"
+          cp "$BIN/macarchy" "$DEST/Helpers/macarchy"
           cp docs/config-examples/default-config.toml "$DEST/Resources/default-config.toml"
           for bundle in "$BIN"/*.bundle; do
             [ -e "$bundle" ] && cp -R "$bundle" "$DEST/Resources/"
@@ -34,7 +34,7 @@ jobs:
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
-            <key>CFBundleExecutable</key><string>AeroSpace</string>
+            <key>CFBundleExecutable</key><string>macarchy</string>
             <key>CFBundleIdentifier</key><string>com.hancengiz.macarchy</string>
             <key>CFBundleName</key><string>macarchy</string>
             <key>CFBundlePackageType</key><string>APPL</string>

@@ -5,7 +5,7 @@ import Network
 
 let usage =
     """
-    USAGE: \(CommandLine.arguments.first ?? "aerospace") [-h|--help] [-v|--version] <subcommand> [<args>...]
+    USAGE: \(CommandLine.arguments.first ?? "macarchy") [-h|--help] [-v|--version] <subcommand> [<args>...]
 
     SUBCOMMANDS:
     \(subcommandDescriptions.sortedBy { $0[0] }.toPaddingTable(columnSeparator: "   ").joined(separator: "\n"))
@@ -38,16 +38,16 @@ struct Main {
             }
             print(
                 """
-                aerospace CLI client version: \(cliClientVersionAndHash)
-                AeroSpace.app server version: \(serverVersionAndHash ?? "Unknown. The server is not responding")
+                macarchy CLI client version: \(cliClientVersionAndHash)
+                Macarchy.app server version: \(serverVersionAndHash ?? "Unknown. The server is not responding")
                 """,
             )
             if serverVersionAndHash != nil && cliClientVersionAndHash != serverVersionAndHash {
                 eprint(
                     """
-                    Warning: AeroSpace client/server versions don't match. Possible fixes:
-                      - Restart AeroSpace.app (server restart is required after each update)
-                      - Reinstall and restart AeroSpace (corrupted installation)
+                    Warning: Macarchy client/server versions don't match. Possible fixes:
+                      - Restart Macarchy.app (server restart is required after each update)
+                      - Reinstall and restart Macarchy (corrupted installation)
                     """,
                 )
             }
@@ -74,7 +74,7 @@ struct Main {
             case .customError(let msg):
                 exit(failExitCode, err: msg)
             case .nwError(let e):
-                exit(failExitCode, err: "Can't connect to AeroSpace server. Is AeroSpace.app running?\n\(e.localizedDescription)")
+                exit(failExitCode, err: "Can't connect to Macarchy server. Is Macarchy.app running?\n\(e.localizedDescription)")
         }
 
         var stdin = ""
@@ -88,8 +88,8 @@ struct Main {
                 exit(
                     failExitCode,
                     err: """
-                        ERROR: Implicit stdin is detected (stdin is not TTY). Implicit stdin was forbidden in AeroSpace v0.20.0.
-                        1. Please supply '--stdin' flag to make stdin explicit and preserve old AeroSpace behavior
+                        ERROR: Implicit stdin is detected (stdin is not TTY). Implicit stdin was forbidden in Macarchy v0.20.0.
+                        1. Please supply '--stdin' flag to make stdin explicit and preserve old Macarchy behavior
                         2. You can also use '--no-stdin' flag to behave as if no stdin was supplied
                         Breaking change issue: https://github.com/nikitabobko/AeroSpace/issues/1683
                         """,
@@ -121,12 +121,12 @@ struct Main {
         if ans.exitCode != EXIT_CODE_ZERO && ans.serverVersionAndHash != cliClientVersionAndHash {
             eprint(
                 """
-                Warning: AeroSpace client/server versions don't match
-                  - aerospace CLI client version: \(cliClientVersionAndHash)
-                  - AeroSpace.app server version: \(ans.serverVersionAndHash)
+                Warning: Macarchy client/server versions don't match
+                  - macarchy CLI client version: \(cliClientVersionAndHash)
+                  - Macarchy.app server version: \(ans.serverVersionAndHash)
                   Possible fixes:
-                  - Restart AeroSpace.app (server restart is required after each update)
-                  - Reinstall and restart AeroSpace (corrupted installation)
+                  - Restart Macarchy.app (server restart is required after each update)
+                  - Reinstall and restart Macarchy (corrupted installation)
                 """,
             )
         }

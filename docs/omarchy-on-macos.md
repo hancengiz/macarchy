@@ -139,11 +139,18 @@ other. The app executable belongs in `Contents/MacOS`; CLI in `Contents/Helpers`
 - [x] Keep per-column width overrides and per-container viewport offset.
 - [x] Reveal the focused column with the smallest necessary horizontal movement.
 - [x] Preserve widths of partially visible neighboring columns.
-- [x] Park fully offscreen columns using AeroSpace's corner-hiding mechanism.
+- [x] Park fully offscreen columns using the tiling engine's corner-hiding mechanism.
 - [x] Restore offscreen columns when focused and when management is disabled.
 - [x] Toggle scrolling/horizontal tiles on the same workspace with Option+L.
-- [x] Keep scrolling horizontal when Option+J is pressed; split orientation
-  toggles apply to tiles rather than rotating the scrolling strip vertically.
+- [x] Keep the scrolling strip horizontal. Option+J now binds to
+  `toggle-split opposite` (Omarchy `togglesplit` semantics): it arms the split
+  direction for the next new window, which joins the focused window inside an
+  opposite-orientation container — including a vertical stack within one
+  scrolling column. `layout horizontal vertical` still rotates tiles roots.
+  The wrapper is materialized only at the atomic bind site, so the flatten
+  normalization never dissolves a half-built split (see `consumeSplitHint`).
+- [x] Preserve window proportions across scrolling <-> tiles switches by
+  converting `scrollingSize` <-> `adaptiveWeight` in `changeTilingLayout`.
 - [x] Add geometry, traversal, resize, config, and layout-toggle tests.
 - [ ] Complete live acceptance on multiple monitors and varied app minimum sizes.
 - [ ] Verify long sequences of focus, close, reopen, monitor move, fullscreen,
@@ -179,7 +186,7 @@ Relevant final keys:
 | Option+Left/Right | Previous/next window within the workspace |
 | Option+Shift+arrows | Swap windows |
 | Option+L | Scrolling / horizontal tiles |
-| Option+J | Toggle split orientation in tiles |
+| Option+J | Arm split direction for the next new window (vertical/horizontal) |
 | Option+T | Float / tile |
 | Option+- / = | Shrink / grow width by 100 |
 | Option+Control+- / = | Fine width resize by 25 |

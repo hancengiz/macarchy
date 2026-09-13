@@ -22,7 +22,7 @@ func waitForAccessibilityPermission_nonCancellable() async {
 }
 
 private func resetAccessibility() {
-    _ = try? Process.run(URL(filePath: "/usr/bin/tccutil"), arguments: ["reset", "Accessibility", aeroSpaceAppId])
+    _ = try? Process.run(URL(filePath: "/usr/bin/tccutil"), arguments: ["reset", "Accessibility", appId])
 }
 
 protocol ReadableAttr: Sendable {

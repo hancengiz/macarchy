@@ -8,6 +8,8 @@ struct ShortcutConflict: Identifiable, Equatable {
     let mode: String
     let binding: String
     let reason: String
+    /// App-level collisions are informational: the binding stays registered.
+    var advisory = false
     var id: String { "\(mode):\(binding)" }
 }
 
@@ -57,7 +59,7 @@ final class ShortcutConflicts: ObservableObject {
     func recheck() async {
         guard !isChecking else { return }
         guard TrayMenuModel.shared.isEnabled else {
-            checkStatus = "Enable AeroSpace to check shortcuts."
+            checkStatus = "Enable Macarchy to check shortcuts."
             refreshVisibleNotice()
             return
         }
@@ -130,7 +132,7 @@ func shortcutConflictNotice(model: ShortcutConflicts) -> TrayNotice {
         TrayNoticeRow(
             title: conflict.binding,
             detail: conflict.reason,
-            action: TrayNoticeAction(
+            action: conflict.advisory ? nil : TrayNoticeAction(
                 id: "pause-\(conflict.id)",
                 label: "Pause",
                 tooltip: "Pauses this binding until config reload",
@@ -155,7 +157,11 @@ func shortcutConflictNotice(model: ShortcutConflicts) -> TrayNotice {
         id: shortcutConflictNoticeId,
         severity: checking ? .info : (hasConflicts ? .warning : .success),
         title: checking ? "Checking shortcuts…" : (hasConflicts ? "\(model.conflicts.count) conflicting shortcut(s)" : "No conflicts detected"),
-        message: hasConflicts && !checking ? "Conflicting shortcuts are paused until resolved." : nil,
+        message: hasConflicts && !checking
+            ? (model.conflicts.allSatisfy(\.advisory)
+                ? "App-level collisions found. Bindings stay active; consider the suggested remaps."
+                : "Conflicting shortcuts are paused until resolved.")
+            : nil,
         rows: rows,
         actions: actions,
         footer: footer.isEmpty ? nil : footer.joined(separator: " · "),

@@ -31,7 +31,13 @@ final class MacWindow: Window {
 
         // atomic synchronous section
         if let existing = allWindowsMap[windowId] { return existing }
-        let window = MacWindow(windowId, macApp, lastFloatingSize: rect?.size, parent: data.parent, adaptiveWeight: data.adaptiveWeight, index: data.index)
+        var parent = data.parent
+        var index = data.index
+        if let splitHint = data.splitHint, let wrapper = consumeSplitHint(splitHint) {
+            parent = wrapper
+            index = INDEX_BIND_LAST
+        }
+        let window = MacWindow(windowId, macApp, lastFloatingSize: rect?.size, parent: parent, adaptiveWeight: data.adaptiveWeight, index: index)
         allWindowsMap[windowId] = window
 
         try await debugWindowsIfRecording(window, .cancellable)
@@ -209,7 +215,13 @@ extension Window {
         let data = forceTile
             ? unbindAndGetBindingDataForNewTilingWindow(workspace, window: self)
             : try await unbindAndGetBindingDataForNewWindow(self.asMacWindow().windowId, self.asMacWindow().macApp, workspace, window: self, cm)
-        bind(to: data.parent, adaptiveWeight: data.adaptiveWeight, index: data.index)
+        var parent = data.parent
+        var index = data.index
+        if let splitHint = data.splitHint, let wrapper = consumeSplitHint(splitHint) {
+            parent = wrapper
+            index = INDEX_BIND_LAST
+        }
+        bind(to: parent, adaptiveWeight: data.adaptiveWeight, index: index)
     }
 }
 
@@ -224,12 +236,25 @@ private func unbindAndGetBindingDataForNewWindow(_ windowId: UInt32, _ macApp: M
     }
 }
 
-// The function is private because it's unsafe. It leaves the window in unbound state
+// The function is not private to allow testing. It's unsafe: it leaves the window in unbound state
 @MainActor
-private func unbindAndGetBindingDataForNewTilingWindow(_ workspace: Workspace, window: Window?) -> BindingData {
+func unbindAndGetBindingDataForNewTilingWindow(_ workspace: Workspace, window: Window?) -> BindingData {
     window?.unbindFromParent() // It's important to unbind to get correct data from below
     let mruWindow = workspace.mostRecentWindowRecursive
     if let mruWindow, let tilingParent = mruWindow.parent as? TilingContainer {
+        // Omarchy-style split toggle: `toggle-split` arms a direction on the MRU
+        // window; the next window that arrives joins it in an opposite-orientation
+        // container. The container itself is created only at the atomic bind site
+        // (`consumeSplitHint`): this function runs across `await` boundaries where
+        // the flatten normalization would dissolve a single-child wrapper.
+        if let orientation = mruWindow.nextSplitOrientation {
+            return BindingData(
+                parent: tilingParent,
+                adaptiveWeight: WEIGHT_AUTO,
+                index: mruWindow.ownIndex.orDie() + 1,
+                splitHint: (window: mruWindow, orientation: orientation),
+            )
+        }
         return BindingData(
             parent: tilingParent,
             adaptiveWeight: WEIGHT_AUTO,
@@ -242,6 +267,29 @@ private func unbindAndGetBindingDataForNewTilingWindow(_ workspace: Workspace, w
             index: INDEX_BIND_LAST,
         )
     }
+}
+
+/// Consumes an armed `toggle-split` hint and returns the parent the new window
+/// must bind into: a fresh opposite-orientation wrapper around the armed window,
+/// or nil when the hint matches the container orientation (plain sibling insert
+/// is enough) or the armed window is no longer tiling. Must be called from a
+/// synchronous section — the wrapper exists with two children before any
+/// normalization pass can observe it.
+@MainActor
+func consumeSplitHint(_ hint: (window: Window, orientation: Orientation)) -> NonLeafTreeNodeObject? {
+    hint.window.nextSplitOrientation = nil
+    guard let tilingParent = hint.window.parent as? TilingContainer else { return nil }
+    guard hint.orientation != tilingParent.orientation else { return nil }
+    let binding = hint.window.unbindFromParent()
+    let wrapper = TilingContainer(
+        parent: tilingParent,
+        adaptiveWeight: binding.adaptiveWeight,
+        hint.orientation,
+        .tiles,
+        index: binding.index,
+    )
+    hint.window.bind(to: wrapper, adaptiveWeight: WEIGHT_AUTO, index: INDEX_BIND_LAST)
+    return wrapper
 }
 
 @MainActor
@@ -278,7 +326,7 @@ extension WindowDetectedCallback {
     func matches(_ window: Window) async -> Bool {
         switch self.matcher {
             case .legacy(let matcher):
-                if let startupMatcher = matcher.duringAeroSpaceStartup, startupMatcher != isStartup {
+                if let startupMatcher = matcher.duringAppStartup, startupMatcher != isStartup {
                     return false
                 }
                 if let regex = matcher.windowTitleRegexSubstring, (try? await window.getTitle(.nonCancellable))?.contains(caseInsensitiveRegex: regex) != true {

@@ -36,7 +36,7 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
         let button = statusItem.button
         button?.imagePosition = .imageOnly
         button?.imageScaling = .scaleProportionallyDown
-        button?.setAccessibilityLabel(aeroSpaceAppName)
+        button?.setAccessibilityLabel(appName)
         statusItem.menu = buildMenu()
         Publishers.Merge3(
             model.$isEnabled.dropFirst().map { _ in () },
@@ -82,7 +82,7 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
                 image.isTemplate = false // MenuBarLabel bakes in the menu-bar-appropriate color
                 button.image = image
             case (.granted, false):
-                button.image = NSImage(systemSymbolName: "pause.circle.fill", accessibilityDescription: "AeroSpace disabled")
+                button.image = NSImage(systemSymbolName: "pause.circle.fill", accessibilityDescription: "Macarchy disabled")
             case (_, _):
                 button.image = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: "Waiting for accessibility permission")
         }
@@ -98,8 +98,8 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
         let viewModel = TrayMenuModel.shared
         var items: [NSMenuItem] = []
 
-        let shortIdentification = "\(aeroSpaceAppName) v\(aeroSpaceAppVersion) \(gitShortHash)"
-        let identification = "\(aeroSpaceAppName) v\(aeroSpaceAppVersion) \(gitHash)"
+        let shortIdentification = "\(appName) v\(appVersion) \(gitShortHash)"
+        let identification = "\(appName) v\(appVersion) \(gitHash)"
         items.append(header(shortIdentification))
         items.append(action("Copy to clipboard", key: "c") { identification.copyToClipboard() })
         items.append(.separator())
@@ -156,7 +156,7 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
                 items.append(.separator())
             }
 
-            items.append(action("Sponsor AeroSpace on GitHub") {
+            items.append(action("Sponsor upstream AeroSpace on GitHub") {
                 NSWorkspace.shared.open(URL(string: "https://github.com/sponsors/nikitabobko").orDie())
                 viewModel.sponsorshipMessage = sponsorshipPrompts.randomElement().orDie()
             })
@@ -200,7 +200,7 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
         }
 
         items.append(.separator())
-        items.append(action("Quit \(aeroSpaceAppName)", key: "q") {
+        items.append(action("Quit \(appName)", key: "q") {
             Task.startUnstructured {
                 terminationHandler?.beforeTermination()
                 terminateApp()

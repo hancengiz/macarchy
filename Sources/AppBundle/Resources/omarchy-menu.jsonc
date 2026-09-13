@@ -4,7 +4,7 @@
 // Overlay your own entries in ~/.config/aerospace/omarchy/menu.jsonc (same format):
 //   same-id entries merge per field and keep their original position; new ids append.
 // icon = SF Symbol name. action = shell command, or one of the reserved in-app actions:
-//   aerospace:shortcuts, aerospace:conflicts, aerospace:reload, aerospace:hotkeys.
+//   macarchy:shortcuts, macarchy:conflicts, macarchy:reload, macarchy:hotkeys.
 // Guards (when/checked/disabled) hold bash conditions evaluated in one batch.
 {
   "root": { "icon": "square.grid.2x2", "label": "Go" },
@@ -106,25 +106,25 @@
     "icon": "keyboard",
     "label": "Current Shortcuts",
     "description": "hotkeys bindings help",
-    "action": "aerospace:shortcuts",
+    "action": "macarchy:shortcuts",
   },
   "aerospace.conflicts": {
     "icon": "exclamationmark.triangle",
     "label": "Check Shortcut Conflicts",
     "description": "recheck hotkeys bindings",
-    "action": "aerospace:conflicts",
+    "action": "macarchy:conflicts",
   },
   "aerospace.reload": {
     "icon": "arrow.clockwise",
     "label": "Reload Config",
     "description": "config reload refresh",
-    "action": "aerospace:reload",
+    "action": "macarchy:reload",
   },
   "aerospace.hotkeys": {
     "icon": "doc.text",
     "label": "Hotkey Reference File",
     "description": "hotkeys txt reference",
-    "action": "aerospace:hotkeys",
+    "action": "macarchy:hotkeys",
   },
 
   "learn": {

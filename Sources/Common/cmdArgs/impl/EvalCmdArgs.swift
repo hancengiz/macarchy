@@ -9,7 +9,7 @@ public struct EvalCmdArgs: CmdArgs {
         ],
         posArgs: [
             dashDashArg(mandatory: false),
-            newMandatoryPosArgParser(\.shellExpr, consumeStrCliArg, placeholder: "<aerospace-shell-expr>"),
+            newMandatoryPosArgParser(\.shellExpr, consumeStrCliArg, placeholder: "<macarchy-shell-expr>"),
         ],
         conflictingOptions: [],
     )
