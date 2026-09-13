@@ -274,6 +274,19 @@ final class OmarchyMenuDataTest: XCTestCase {
         XCTAssertEqual(state.fire, .left)
     }
 
+    func testEdgeFocusBounceArrivalDecision() {
+        // Quick return to the same edge: bounce
+        XCTAssertTrue(isEdgeFocusBounceArrival(lastLeft: .right, leftAge: 0.15, current: .right))
+        // Fresh visit long after leaving: not a bounce (dwell path applies)
+        XCTAssertFalse(isEdgeFocusBounceArrival(lastLeft: .right, leftAge: 2.0, current: .right))
+        // Different edge: never a bounce
+        XCTAssertFalse(isEdgeFocusBounceArrival(lastLeft: .right, leftAge: 0.1, current: .left))
+        // No prior leave recorded
+        XCTAssertFalse(isEdgeFocusBounceArrival(lastLeft: nil, leftAge: 0.1, current: .right))
+        XCTAssertFalse(isEdgeFocusBounceArrival(lastLeft: .right, leftAge: nil, current: .right))
+        XCTAssertFalse(isEdgeFocusBounceArrival(lastLeft: .right, leftAge: 0.1, current: nil))
+    }
+
     func testSearchResultsKeepProviderRowHandlers() throws {
         let store = OmarchyMenuStore.shared
         store.nodes = mergeMenuSources(defaults: [

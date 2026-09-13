@@ -5,7 +5,9 @@ import Foundation
 // Omarchy-style mouse edge focus: parking the pointer at the far left/right edge
 // of a screen moves focus to the previous/next window in the workspace, like
 // pressing Super+Left/Right. Only physical screen edges adjacent to no other
-// display qualify; the pointer must dwell briefly to avoid accidental triggers.
+// display qualify. Two trigger styles: a brief dwell (two poll ticks), or the
+// push-bounce-push gesture — push into the edge, pull slightly back, push again —
+// which fires immediately and repeats for every bounce.
 
 enum MouseEdgeFocusDirection: Equatable {
     case left
@@ -17,6 +19,8 @@ enum MouseEdgeFocus {
     static var loop: Task<Void, Never>?
     static var dwellDirection: MouseEdgeFocusDirection?
     static var firedDirection: MouseEdgeFocusDirection?
+    static var lastLeftEdge: MouseEdgeFocusDirection?
+    static var lastLeftAt: Date?
     static var enabled = false
 
     static func sync(enabled: Bool) {
@@ -37,6 +41,7 @@ enum MouseEdgeFocus {
         guard TrayMenuModel.shared.isEnabled, activeMode == mainModeId, !ModifierMouse.isDragging else {
             dwellDirection = nil
             firedDirection = nil
+            lastLeftEdge = nil
             return
         }
         let mouse = NSEvent.mouseLocation
@@ -44,6 +49,7 @@ enum MouseEdgeFocus {
         guard let screen = screens.first(where: { $0.frame.contains(mouse) }) else {
             dwellDirection = nil
             firedDirection = nil
+            lastLeftEdge = nil
             return
         }
         let direction = edgeFocusDirection(
@@ -52,10 +58,26 @@ enum MouseEdgeFocus {
             visibleFrame: screen.visibleFrame,
             otherScreens: screens.filter { $0 != screen }.map(\.frame),
         )
+        let now = Date()
+        // Leaving the edge zone (after dwelling or firing) arms the bounce: a
+        // quick return to the same edge is the deliberate push-bounce-push gesture.
+        if direction == nil, let left = dwellDirection ?? firedDirection {
+            lastLeftEdge = left
+            lastLeftAt = now
+        }
         let step = edgeFocusDwellStep(dwell: dwellDirection, fired: firedDirection, current: direction)
         dwellDirection = step.dwell
         firedDirection = step.fired
-        if let toFire = step.fire {
+        if isEdgeFocusBounceArrival(
+            lastLeft: lastLeftEdge,
+            leftAge: lastLeftAt.map { now.timeIntervalSince($0) },
+            current: direction
+        ), firedDirection != direction {
+            dwellDirection = nil
+            firedDirection = direction
+            lastLeftEdge = nil
+            fire(direction: direction!)
+        } else if let toFire = step.fire {
             fire(direction: toFire)
         }
     }
@@ -96,6 +118,20 @@ func edgeFocusDirection(
         return .right
     }
     return nil
+}
+
+/// Pure bounce decision: true when the pointer just arrived at the same dead-end
+/// edge zone it left moments ago — the push-bounce-push gesture — which fires
+/// immediately instead of waiting for the two-tick dwell. `leftAge` is the time
+/// since the pointer left that edge zone.
+func isEdgeFocusBounceArrival(
+    lastLeft: MouseEdgeFocusDirection?,
+    leftAge: TimeInterval?,
+    current: MouseEdgeFocusDirection?,
+    window: TimeInterval = 0.8
+) -> Bool {
+    guard let lastLeft, let leftAge, let current else { return false }
+    return lastLeft == current && leftAge >= 0 && leftAge <= window
 }
 
 /// Pure dwell state machine for one poll tick. The pointer must sit in the same
