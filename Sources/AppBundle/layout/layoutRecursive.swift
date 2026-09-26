@@ -36,7 +36,12 @@ extension TreeNode {
                     lastAppliedLayoutPhysicalRect = nil
                     lastAppliedLayoutVirtualRect = nil
                     if let window = window as? MacWindow {
-                        try await window.hideInCorner(context.hideCorner)
+                        // Native-fullscreen windows live on their own Space; AX-moving
+                        // them tears the fullscreen animation and drags video across
+                        // monitors. Leave them: their Space is only shown when focused.
+                        if try await !window.isMacosFullscreen(.cancellable) {
+                            try await window.hideInCorner(context.hideCorner)
+                        }
                     }
                     return
                 }

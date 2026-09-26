@@ -151,10 +151,13 @@ final class MacWindow: Window {
         switch corner {
             case .belowBottomEdge:
                 guard let s = try await getAxSize(.cancellable) else { fallthrough }
-                // Fully below the bottom edge, horizontally inside the monitor:
-                // no side leak into adjacent monitors on multi-monitor rows.
+                // Below the bottom edge, horizontally inside the monitor: no side
+                // leak into adjacent monitors. Keep the top-left 1px INSIDE the
+                // monitor — zero-overlap offscreen positions make apps (browsers,
+                // Zoom) self-relocate the window to a visible screen.
                 let visible = nodeMonitor.visibleRect
-                p = CGPoint(x: visible.maxX - 2 - s.width, y: visible.maxY + 2)
+                let x = max(visible.minX, visible.maxX - 2 - s.width)
+                p = CGPoint(x: x, y: visible.maxY - 1)
             case .bottomLeftCorner:
                 guard let s = try await getAxSize(.cancellable) else { fallthrough }
                 // Zoom will jump off if you do one pixel offset
