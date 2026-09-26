@@ -9,10 +9,10 @@ struct MenuBarLabel: View {
     let color: Color?
     let style: MenuBarStyle?
 
-    let hStackSpacing = CGFloat(3)
-    let itemSize = CGFloat(18)
-    let itemBorderSize = CGFloat(1.25)
-    let itemCornerRadius = CGFloat(4)
+    let hStackSpacing = CGFloat(6)
+    let itemSize = CGFloat(40)
+    let itemBorderSize = CGFloat(3)
+    let itemCornerRadius = CGFloat(6)
 
     private var finalColor: Color {
         return color ?? (menuColorScheme == .dark ? Color.white : Color.black)
@@ -24,7 +24,7 @@ struct MenuBarLabel: View {
     }
 
     var body: some View {
-        if #available(macOS 14, *) { //
+        if #available(macOS 14, *) { // https://github.com/nikitabobko/AeroSpace/issues/1122
             let renderer = ImageRenderer(content: menuBarContent)
             switch renderer.cgImage {
                 // Using scale: 1 results in a blurry image for unknown reasons
@@ -55,7 +55,7 @@ struct MenuBarLabel: View {
                     let modeItem = viewModel.trayItems.first { $0.type == .mode }
                     if let modeItem {
                         itemView(for: modeItem)
-                        Spacer().frame(width: 2)
+                        modeSeparator(with: .monospaced)
                     }
                     let orderedWorkspaces = viewModel.workspaces.filter { !$0.isEffectivelyEmpty || $0.isVisible }
                     ForEach(orderedWorkspaces, id: \.name) { item in
@@ -74,7 +74,7 @@ struct MenuBarLabel: View {
 
     private func getText(for design: Font.Design) -> some View {
         Text(viewModel.trayText)
-            .font(.system(size: 12, weight: .semibold, design: design))
+            .font(.system(.largeTitle, design: design))
             .foregroundStyle(finalColor)
     }
 
@@ -90,9 +90,10 @@ struct MenuBarLabel: View {
     private func otherWorkspaces(with otherWorkspaces: [WorkspaceViewModel]) -> some View {
         Group {
             Text("|")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(.largeTitle))
                 .foregroundStyle(finalColor)
-                .padding(.bottom, 3)
+                .bold()
+                .padding(.bottom, 6)
             ForEach(otherWorkspaces, id: \.name) { item in
                 itemView(for: TrayItem(type: .workspace, name: item.name, isActive: false, hasFullscreenWindows: item.hasFullscreenWindows))
             }
@@ -102,17 +103,18 @@ struct MenuBarLabel: View {
 
     private func modeSeparator(with design: Font.Design) -> some View {
         Text(":")
-            .font(.system(size: 12, weight: .bold, design: design))
+            .font(.system(.largeTitle, design: design))
             .foregroundStyle(finalColor)
+            .bold()
     }
 
     @ViewBuilder
     fileprivate func itemView(for item: TrayItem) -> some View {
         let view = itemSubView(for: item)
         if item.hasFullscreenWindows {
-            let strokeStyle = StrokeStyle(lineWidth: 1, lineCap: .square, lineJoin: .miter, miterLimit: 10, dash: [4, 3], dashPhase: 2)
+            let strokeStyle = StrokeStyle(lineWidth: 2, lineCap: .square, lineJoin: .miter, miterLimit: 10, dash: [10, 5], dashPhase: 3)
             view
-                .padding(2)
+                .padding(4)
                 .overlay {
                     RoundedRectangle(cornerRadius: itemCornerRadius, style: .continuous)
                         .strokeBorder(finalColor, style: strokeStyle)
@@ -127,19 +129,21 @@ struct MenuBarLabel: View {
         // If workspace name contains emojis we use the plain emoji in text to avoid visibility issues scaling the emoji to fit the squares
         if item.name.containsEmoji() {
             Text(item.name)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(.largeTitle))
                 .foregroundStyle(finalColor)
                 .frame(height: itemSize)
         } else {
             if let imageName = item.systemImageName {
                 Image(systemName: imageName)
-                    .font(.system(size: 14, weight: .medium))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
                     .symbolRenderingMode(.monochrome)
                     .foregroundStyle(finalColor)
-                    .frame(height: itemSize)
+                    .frame(width: itemSize, height: itemSize)
             } else {
                 let text = Text(item.name)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(.largeTitle))
+                    .bold()
                     .padding(.horizontal, itemBorderSize * 2)
                     .frame(height: itemSize)
                 if item.isActive {
