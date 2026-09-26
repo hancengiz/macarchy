@@ -101,15 +101,20 @@ extension Window {
             let yProportion = (windowTopLeftCorner.y - currentMonitor.visibleRect.topLeftY) / currentMonitor.visibleRect.height
 
             let workspaceRect = workspace.workspaceMonitor.visibleRect
+            // Fit oversized floating windows: a window larger than the destination
+            // monitor would be unreachably clipped (typical when moving from a big
+            // external display to a smaller one and back).
+            let windowWidth = min(windowRect.width, workspaceRect.width)
+            let windowHeight = min(windowRect.height, workspaceRect.height)
+            let size = windowWidth == windowRect.width && windowHeight == windowRect.height
+                ? nil
+                : CGSize(width: windowWidth, height: windowHeight)
             var newX = workspaceRect.topLeftX + xProportion * workspaceRect.width
             var newY = workspaceRect.topLeftY + yProportion * workspaceRect.height
-
-            let windowWidth = windowRect.width
-            let windowHeight = windowRect.height
             newX = newX.coerce(in: workspaceRect.minX ... max(workspaceRect.minX, workspaceRect.maxX - windowWidth))
             newY = newY.coerce(in: workspaceRect.minY ... max(workspaceRect.minY, workspaceRect.maxY - windowHeight))
 
-            setAxFrame(CGPoint(x: newX, y: newY), nil)
+            setAxFrame(CGPoint(x: newX, y: newY), size)
         }
         if isFullscreen {
             layoutFullscreen(context)

@@ -5,7 +5,7 @@ struct ResizeCommand: Command {
     let args: ResizeCmdArgs
     /*conforms*/ let shouldResetClosedWindowsCache = true
 
-    func run(_ env: CmdEnv, _ io: CmdIo) -> BinaryExitCode {
+    func run(_ env: CmdEnv, _ io: CmdIo) async -> BinaryExitCode {
         guard let target = args.resolveTargetOrReportError(env, io) else { return .fail }
 
         let candidates = target.windowOrNil?.parentsWithSelf
@@ -34,7 +34,7 @@ struct ResizeCommand: Command {
                 parent = node?.parent as? TilingContainer
         }
         guard let parent else {
-            return .fail(io.err("resize command doesn't support floating windows yet"))
+            return await resizeFloatingWindow(target: target, io)
         }
         guard let orientation else { return .fail }
         guard let node else { return .fail }
@@ -61,6 +61,46 @@ struct ResizeCommand: Command {
             .forEach { $0.setWeight(parent.orientation, $0.getWeight(parent.orientation) - childDiff) }
 
         node.setWeight(orientation, node.getWeight(orientation) + diff)
+        return .succ
+    }
+
+    /// Floating windows have no tiling weights; resize their frame directly,
+    /// keeping the center and clamping to the monitor (Super+-/= now fits an
+    /// oversized floating window instead of erroring).
+    @MainActor private func resizeFloatingWindow(target: LiveFocus, _ io: CmdIo) async -> BinaryExitCode {
+        guard let window = target.windowOrNil else {
+            return .fail(io.err("resize command requires a window target"))
+        }
+        guard window.isFloating else {
+            return .fail(io.err("resize command doesn't support this target yet"))
+        }
+        guard let windowRect = try? await window.getAxRect(.cancellable),
+              let monitorRect = window.nodeMonitor?.visibleRect
+        else { return .fail }
+        let horizontal = switch args.dimension.val {
+            case .height: false
+            default: true // width, smart, smartOpposite: no orientation context when floating
+        }
+        let maxDim = horizontal ? monitorRect.width : monitorRect.height
+        let current = horizontal ? windowRect.width : windowRect.height
+        let size: CGFloat = switch args.units.val {
+            case .set(let unit): CGFloat(unit)
+            case .add(let unit): current + CGFloat(unit)
+            case .subtract(let unit): current - CGFloat(unit)
+        }
+        let newSize = size.coerce(in: min(100, maxDim) ... maxDim)
+        var newX = windowRect.topLeftX
+        var newY = windowRect.topLeftY
+        let newWidth = horizontal ? newSize : windowRect.width
+        let newHeight = horizontal ? windowRect.height : newSize
+        if horizontal {
+            newX = windowRect.topLeftX + windowRect.width / 2 - newSize / 2
+        } else {
+            newY = windowRect.topLeftY + windowRect.height / 2 - newSize / 2
+        }
+        newX = newX.coerce(in: monitorRect.minX ... max(monitorRect.minX, monitorRect.maxX - newWidth))
+        newY = newY.coerce(in: monitorRect.minY ... max(monitorRect.minY, monitorRect.maxY - newHeight))
+        window.setAxFrame(CGPoint(x: newX, y: newY), CGSize(width: newWidth, height: newHeight))
         return .succ
     }
 }
