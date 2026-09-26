@@ -170,7 +170,7 @@ func refreshObs(_: AXObserver, _: AXUIElement, notif: CFString, _: UnsafeMutable
 }
 
 enum OptimalHideCorner {
-    case bottomLeftCorner, bottomRightCorner
+    case bottomLeftCorner, bottomRightCorner, belowBottomEdge
 }
 
 @MainActor
@@ -187,24 +187,39 @@ private func layoutWorkspaces() async throws {
     for monitor in monitors {
         let xOff = monitor.width * 0.1
         let yOff = monitor.height * 0.1
-        // brc = bottomRightCorner
-        let brc1 = monitor.rect.bottomRightCorner + CGPoint(x: 2, y: -yOff)
-        let brc2 = monitor.rect.bottomRightCorner + CGPoint(x: -xOff, y: 2)
-        let brc3 = monitor.rect.bottomRightCorner + CGPoint(x: 2, y: 2)
-
-        // blc = bottomLeftCorner
-        let blc1 = monitor.rect.bottomLeftCorner + CGPoint(x: -2, y: -yOff)
-        let blc2 = monitor.rect.bottomLeftCorner + CGPoint(x: xOff, y: 2)
-        let blc3 = monitor.rect.bottomLeftCorner + CGPoint(x: -2, y: 2)
+        let minX = monitor.rect.minX
+        let maxX = monitor.rect.maxX
+        let maxY = monitor.rect.maxY
 
         func contains(_ monitor: MonitorInfo, _ point: CGPoint) -> Int { monitor.rect.contains(point) ? 1 : 0 }
-        let important = 10
+        func score(_ points: [CGPoint]) -> Int { monitors.sumOfInt { m in points.reduce(0) { $0 + contains(m, $1) } } }
 
-        let corner: OptimalHideCorner =
-            monitors.sumOfInt { contains($0, blc1) + contains($0, blc2) + important * contains($0, blc3) } <
-            monitors.sumOfInt { contains($0, brc1) + contains($0, brc2) + important * contains($0, brc3) }
-            ? .bottomLeftCorner
-            : .bottomRightCorner
+        // Parked windows extend past the monitor edge in the parking direction.
+        // A corner is safe only if the space just beyond it belongs to no other
+        // monitor; otherwise the "hidden" window renders (and flickers) there.
+        let brcScore = score([
+            CGPoint(x: maxX + 2, y: maxY - 2), // right neighbor
+            CGPoint(x: maxX + 2, y: maxY - yOff),
+            CGPoint(x: maxX - xOff, y: maxY + 2), // monitor below
+        ])
+        let blcScore = score([
+            CGPoint(x: minX - 2, y: maxY - 2), // left neighbor
+            CGPoint(x: minX - 2, y: maxY - yOff),
+            CGPoint(x: minX + xOff, y: maxY + 2),
+        ])
+        let belowScore = score([
+            CGPoint(x: minX + xOff, y: maxY + 2),
+            CGPoint(x: (minX + maxX) / 2, y: maxY + 2),
+            CGPoint(x: maxX - xOff, y: maxY + 2),
+        ])
+
+        let corner: OptimalHideCorner = if belowScore < min(brcScore, blcScore) {
+            .belowBottomEdge // both side corners leak into neighbors; drop below instead
+        } else if blcScore < brcScore {
+            .bottomLeftCorner
+        } else {
+            .bottomRightCorner // historical default, incl. single-monitor ties
+        }
         monitorToOptimalHideCorner[monitor.rect.topLeftCorner] = corner
     }
 

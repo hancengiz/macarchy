@@ -149,15 +149,19 @@ final class MacWindow: Window {
         }
         let p: CGPoint
         switch corner {
+            case .belowBottomEdge:
+                guard let s = try await getAxSize(.cancellable) else { fallthrough }
+                // Fully below the bottom edge, horizontally inside the monitor:
+                // no side leak into adjacent monitors on multi-monitor rows.
+                let visible = nodeMonitor.visibleRect
+                p = CGPoint(x: visible.maxX - 2 - s.width, y: visible.maxY + 2)
             case .bottomLeftCorner:
                 guard let s = try await getAxSize(.cancellable) else { fallthrough }
                 // Zoom will jump off if you do one pixel offset
-                // todo this ad hoc won't be necessary once I implement optimization suggested by Zalim
                 let onePixelOffset = macApp.appId == .zoom ? .zero : CGPoint(x: 1, y: -1)
                 p = nodeMonitor.visibleRect.bottomLeftCorner + onePixelOffset + CGPoint(x: -s.width, y: 0)
             case .bottomRightCorner:
                 // Zoom will jump off if you do one pixel offset
-                // todo this ad hoc won't be necessary once I implement optimization suggested by Zalim
                 let onePixelOffset = macApp.appId == .zoom ? .zero : CGPoint(x: 1, y: 1)
                 p = nodeMonitor.visibleRect.bottomRightCorner - onePixelOffset
         }

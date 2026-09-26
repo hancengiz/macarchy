@@ -9,10 +9,10 @@ struct MenuBarLabel: View {
     let color: Color?
     let style: MenuBarStyle?
 
-    let hStackSpacing = CGFloat(6)
-    let itemSize = CGFloat(40)
-    let itemBorderSize = CGFloat(3)
-    let itemCornerRadius = CGFloat(6)
+    let hStackSpacing = CGFloat(5)
+    let itemSize = CGFloat(32)
+    let itemBorderSize = CGFloat(2)
+    let itemCornerRadius = CGFloat(5)
 
     private var finalColor: Color {
         return color ?? (menuColorScheme == .dark ? Color.white : Color.black)
@@ -74,7 +74,7 @@ struct MenuBarLabel: View {
 
     private func getText(for design: Font.Design) -> some View {
         Text(viewModel.trayText)
-            .font(.system(.largeTitle, design: design))
+            .font(.system(.title, design: design))
             .foregroundStyle(finalColor)
     }
 
@@ -90,7 +90,7 @@ struct MenuBarLabel: View {
     private func otherWorkspaces(with otherWorkspaces: [WorkspaceViewModel]) -> some View {
         Group {
             Text("|")
-                .font(.system(.largeTitle))
+                .font(.system(.title))
                 .foregroundStyle(finalColor)
                 .bold()
                 .padding(.bottom, 6)
@@ -103,7 +103,7 @@ struct MenuBarLabel: View {
 
     private func modeSeparator(with design: Font.Design) -> some View {
         Text(":")
-            .font(.system(.largeTitle, design: design))
+            .font(.system(.title, design: design))
             .foregroundStyle(finalColor)
             .bold()
     }
@@ -129,7 +129,7 @@ struct MenuBarLabel: View {
         // If workspace name contains emojis we use the plain emoji in text to avoid visibility issues scaling the emoji to fit the squares
         if item.name.containsEmoji() {
             Text(item.name)
-                .font(.system(.largeTitle))
+                .font(.system(.title))
                 .foregroundStyle(finalColor)
                 .frame(height: itemSize)
         } else {
@@ -142,7 +142,7 @@ struct MenuBarLabel: View {
                     .frame(width: itemSize, height: itemSize)
             } else {
                 let text = Text(item.name)
-                    .font(.system(.largeTitle))
+                    .font(.system(.title))
                     .bold()
                     .padding(.horizontal, itemBorderSize * 2)
                     .frame(height: itemSize)
