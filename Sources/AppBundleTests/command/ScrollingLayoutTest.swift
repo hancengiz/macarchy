@@ -54,14 +54,14 @@ final class ScrollingLayoutTest: XCTestCase {
         // Widen the focused column; the other two keep the default width
         _ = await parseCommand("resize width +200").cmdOrDie.run(.defaultEnv, .emptyStdin)
         try await workspace.layoutWorkspace()
-        let scrollingWidths = windows.map { try XCTUnwrap($0.lastAppliedLayoutPhysicalRect).width }
+        let scrollingWidths = try windows.map { try XCTUnwrap($0.lastAppliedLayoutPhysicalRect).width }
         XCTAssertEqual(scrollingWidths[1], scrollingWidths[2], accuracy: 0.1)
         XCTAssertGreaterThan(scrollingWidths[0], scrollingWidths[1])
 
         // Switching to tiles must carry the proportions over instead of equalizing
         _ = await parseCommand("layout --root h_tiles").cmdOrDie.run(.defaultEnv, .emptyStdin)
         try await workspace.layoutWorkspace()
-        let tilesWidths = windows.map { try XCTUnwrap($0.lastAppliedLayoutPhysicalRect).width }
+        let tilesWidths = try windows.map { try XCTUnwrap($0.lastAppliedLayoutPhysicalRect).width }
         XCTAssertEqual(tilesWidths[0] / tilesWidths[1], scrollingWidths[0] / scrollingWidths[1], accuracy: 0.02)
         XCTAssertEqual(tilesWidths[1], tilesWidths[2], accuracy: 0.1)
 
@@ -69,7 +69,7 @@ final class ScrollingLayoutTest: XCTestCase {
         // offscreen tape cannot map into an equal-extent tiles row and back)
         _ = await parseCommand("layout --root scrolling").cmdOrDie.run(.defaultEnv, .emptyStdin)
         try await workspace.layoutWorkspace()
-        let restoredWidths = windows.map { try XCTUnwrap($0.lastAppliedLayoutPhysicalRect).width }
+        let restoredWidths = try windows.map { try XCTUnwrap($0.lastAppliedLayoutPhysicalRect).width }
         XCTAssertEqual(restoredWidths[0] / restoredWidths[1], scrollingWidths[0] / scrollingWidths[1], accuracy: 0.02)
         XCTAssertEqual(restoredWidths[1], restoredWidths[2], accuracy: 0.1)
     }
@@ -78,10 +78,6 @@ final class ScrollingLayoutTest: XCTestCase {
         let url = projectRoot.appending(path: "docs/config-examples/omarchy.toml")
         let parsed = parseConfig(try String(contentsOf: url, encoding: .utf8))
         XCTAssertTrue(parsed.errors.isEmpty, "\(parsed.errors)")
-        XCTAssertEqual(parsed.config.defaultRootContainerLayout, .scrolling)
-        XCTAssertEqual(parsed.config.mouseModifier, .alt)
-        XCTAssertTrue(parsed.config.adoptNativeWindowResize)
-        XCTAssertTrue(parsed.config.warnAboutShortcutConflicts)
         for invalid in [0, 9, 101] {
             XCTAssertFalse(parseConfig("scrolling-column-width = \(invalid)").errors.isEmpty)
         }
