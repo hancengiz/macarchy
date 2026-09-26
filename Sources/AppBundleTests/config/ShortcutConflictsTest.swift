@@ -30,6 +30,19 @@ final class ShortcutConflictsTest: XCTestCase {
         XCTAssertEqual(NoticeCenter.shared.current?.id, shortcutConflictNoticeId)
     }
 
+    func testAdvisoriesNeverTriggerAutomaticConflictNotice() {
+        let model = ShortcutConflicts.shared
+        let advisory = ShortcutConflict(mode: "main", binding: "alt-s", reason: "Similar app shortcut", advisory: true)
+        model.update([advisory])
+        XCTAssertNil(NoticeCenter.shared.current)
+        let actual = ShortcutConflict(mode: "main", binding: "alt-t", reason: "Registration refused")
+        model.update([advisory, actual])
+        XCTAssertEqual(NoticeCenter.shared.current?.id, shortcutConflictNoticeId)
+        NoticeCenter.shared.dismiss()
+        model.update([advisory, actual])
+        XCTAssertNil(NoticeCenter.shared.current)
+    }
+
     func testConflictDoesNotReplaceConfigurationDiagnostic() {
         MessageModel.shared.message = Message(body: "Configuration error", containsWarnings: false)
         ShortcutConflicts.shared.update([ShortcutConflict(mode: "main", binding: "alt-t", reason: "Test")])
@@ -62,11 +75,6 @@ final class ShortcutConflictsTest: XCTestCase {
         XCTAssertTrue(reason?.contains("macOS system shortcut") == true)
     }
 
-    func testRegistrationStatusMessages() {
-        XCTAssertNil(shortcutRegistrationConflict(status: noErr))
-        XCTAssertTrue(shortcutRegistrationConflict(status: OSStatus(eventHotKeyExistsErr))?.contains("does not identify the owner") == true)
-        XCTAssertTrue(shortcutRegistrationConflict(status: -50)?.contains("error -50") == true)
-    }
 
     func testExclusiveProbeDetectsAndReleasesActualCarbonReservation() throws {
         let binding = HotkeyBinding([.control, .option, .shift, .command], .f19, .cmd(FocusCommand.new(direction: .left)))
@@ -82,12 +90,4 @@ final class ShortcutConflictsTest: XCTestCase {
         XCTAssertNil(shortcutRegistrationConflict(binding, systemCombos: []), "The probe must unregister itself")
     }
 
-    func testDisableIsModeScopedAndResetOnReload() async {
-        let model = ShortcutConflicts.shared
-        await model.disable(ShortcutConflict(mode: "main", binding: "alt-t", reason: "Test"))
-        XCTAssertTrue(model.isDisabled(mode: "main", binding: "alt-t"))
-        XCTAssertFalse(model.isDisabled(mode: "resize", binding: "alt-t"))
-        model.reset()
-        XCTAssertFalse(model.isDisabled(mode: "main", binding: "alt-t"))
-    }
 }

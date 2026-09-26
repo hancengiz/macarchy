@@ -2,19 +2,48 @@ import AppKit
 import Common
 import Network
 
+@MainActor private var unixSocketListener: NWListener?
+@MainActor private var unixSocketConnections: [ObjectIdentifier: NWConnection] = [:]
+
+@MainActor
 func startUnixSocketServer() {
     try? FileManager.default.removeItem(atPath: socketPath)
     let params = NWParameters.tcp
     params.requiredLocalEndpoint = .unix(path: socketPath)
     let listener = Result { try NWListener(using: params) }.getOrDie()
+    unixSocketListener = listener
     listener.newConnectionHandler = { connection in
-        Task.startUnstructured {
-            defer { connection.cancel() }
+        Task.startUnstructured { @MainActor in
+            guard unixSocketListener != nil else {
+                connection.cancel()
+                return
+            }
+            let id = ObjectIdentifier(connection)
+            unixSocketConnections[id] = connection
+            defer {
+                unixSocketConnections.removeValue(forKey: id)
+                connection.cancel()
+            }
             connection.start(queue: .global())
             await newConnection(connection)
         }
     }
     listener.start(queue: .global())
+}
+
+@MainActor
+func stopUnixSocketServer() async {
+    guard let listener = unixSocketListener else { return }
+    unixSocketListener = nil
+    await withCheckedContinuation { continuation in
+        listener.stateUpdateHandler = { state in
+            if case .cancelled = state { continuation.resume() }
+        }
+        listener.cancel()
+    }
+    for connection in unixSocketConnections.values { connection.cancel() }
+    unixSocketConnections.removeAll()
+    try? FileManager.default.removeItem(atPath: socketPath)
 }
 
 func toggleReleaseServerIfDebug(_ state: EnableCmdArgs.State) async {
@@ -69,6 +98,27 @@ private func newConnection(_ connection: NWConnection) async { // todo add exit 
             continue
         }
         let parsedCmd = parseCommand(request.args)
+        let restartRequestID = UUID()
+        if case .cmd(let command) = parsedCmd, command is RestartCommand {
+            // Restart must not pass through runLightSession: even its normal
+            // post-command relayout would move windows before the replacement.
+            let result = await RestartReplyContext.$requestID.withValue(restartRequestID) {
+                await command.run(.defaultEnv, CmdStdin(request.stdin))
+            }
+            let answer = ServerAnswer(
+                exitCode: result.exitCode.rawValue,
+                stdout: result.stdout.joined(separator: "\n"),
+                stderr: result.stderr.joined(separator: "\n"),
+                serverVersionAndHash: serverVersionAndHash,
+            )
+            if await connection.writeAtomic(answer).error != nil {
+                await cancelPreparedMacarchyRestart(for: restartRequestID)
+            } else if result.exitCode.rawValue == EXIT_CODE_ZERO {
+                do { try await finishPreparedMacarchyRestart(for: restartRequestID) }
+                catch { await reportSessionFailure("Could not restart Macarchy", error: error) }
+            }
+            continue
+        }
         guard let token: RunSessionGuard = await .isServerEnabled(orIsEnableCommand: parsedCmd.cmdOrNil) else {
             await answerToClient(
                 exitCode: EXIT_CODE_TWO,
@@ -92,7 +142,9 @@ private func newConnection(_ connection: NWConnection) async { // todo add exit 
                                 windowId: request.windowId.flattenOptional(),
                                 workspaceName: request.workspace.flattenOptional(),
                             )
-                            let cmdResult = await command.run(env, CmdStdin(request.stdin))
+                            let cmdResult = await RestartReplyContext.$requestID.withValue(restartRequestID) {
+                                await command.run(env, CmdStdin(request.stdin))
+                            }
                             return ServerAnswer(
                                 exitCode: cmdResult.exitCode.rawValue,
                                 stdout: cmdResult.stdout.joined(separator: "\n"),
@@ -111,7 +163,12 @@ private func newConnection(_ connection: NWConnection) async { // todo add exit 
                 if request.windowId == nil || request.workspace == nil {
                     answer.stderr += "\n\nMacarchy client has sent incomplete JSON request. 'windowId' or/and 'workspace' fields are missing. Please forward your MACARCHY_WINDOW_ID and MACARCHY_WORKSPACE environment variables to these JSON fields. If the appropriate environment variables are empty, pass explicit 'null' in the JSON."
                 }
-                await answerToClient(answer)
+                if await connection.writeAtomic(answer).error != nil {
+                    await cancelPreparedMacarchyRestart(for: restartRequestID)
+                } else {
+                    do { try await finishPreparedMacarchyRestart(for: restartRequestID) }
+                    catch { await reportSessionFailure("Could not restart Macarchy", error: error) }
+                }
                 continue
         }
     }

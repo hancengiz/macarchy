@@ -11,14 +11,11 @@ import Foundation
         await waitForAccessibilityPermission_nonCancellable()
         if isDebug {
             await toggleReleaseServerIfDebug(.off)
-            interceptTermination(SIGINT)
-            interceptTermination(SIGKILL)
         }
 
         await bootstrapConfig_nonCancellable()
         _ = await reloadConfig_nonCancellable()
 
-        startUnixSocketServer()
         GlobalObserver.initObserver()
         Workspace.garbageCollectUnusedWorkspaces() // init workspaces
         _ = Workspace.all.first?.focusWorkspace()
@@ -29,8 +26,10 @@ import Foundation
             assumeCancellable: false,
             layoutWorkspaces: false,
         )
+        let restoredSession = await SessionState.shared.restore()
+        startUnixSocketServer()
         try await runLightSession(.startup, .forceRun) {
-            smartLayoutAtStartup()
+            if !restoredSession { smartLayoutAtStartup() }
             _ = await config.afterStartupCommand.run(.defaultEnv, .emptyStdin)
         }
     }

@@ -1,4 +1,5 @@
 import contextlib
+import os
 import io
 from pathlib import Path
 import tempfile
@@ -60,6 +61,93 @@ class InstallerTest(unittest.TestCase):
                     install.main()
                 self.assertEqual(config.read_text(), "# previous config\n")
                 self.assertEqual((helper / "action").read_text(), "# previous helper\n")
+
+    def test_upgrade_preserves_custom_config_and_replaces_bundle_cleanly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            config = home / ".macarchy.toml"
+            original = '# custom\nscrolling-column-width = 0.72\n'
+            config.write_text(original)
+            helper = home / ".config/macarchy"
+            helper.mkdir(parents=True)
+            (helper / "HOTKEYS.txt").write_text("custom shortcuts")
+            (helper / "menu.jsonc").write_text("custom menu")
+            installed = home / "Applications/macarchy.app"
+            installed.mkdir(parents=True)
+            (installed / "obsolete-resource").write_text("old")
+            built = home / "built/macarchy.app"
+            built.mkdir(parents=True)
+            (built / "new-resource").write_text("new")
+            with patch.object(Path, "home", return_value=home), patch.object(install, "build_app", return_value=built), \
+                    patch.object(install, "run"), patch.object(install, "supports_safe_restart", return_value=False), \
+                    patch.dict(os.environ, {"XDG_CONFIG_HOME": str(home / ".config")}), \
+                    patch("sys.argv", ["install.py", "--build"]), contextlib.redirect_stdout(io.StringIO()):
+                install.main()
+            self.assertEqual(config.read_text(), original)
+            self.assertEqual((helper / "HOTKEYS.txt").read_text(), "custom shortcuts")
+            self.assertEqual((helper / "menu.jsonc").read_text(), "custom menu")
+            self.assertEqual((installed / "new-resource").read_text(), "new")
+            self.assertFalse((installed / "obsolete-resource").exists())
+            backup = next((helper / "backups").iterdir())
+            self.assertEqual((backup / "macarchy.app/obsolete-resource").read_text(), "old")
+
+    def test_failed_app_swap_restores_original_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            installed = root / "Applications/macarchy.app"
+            installed.mkdir(parents=True)
+            (installed / "executable").write_text("original")
+            built = root / "built/macarchy.app"
+            built.mkdir(parents=True)
+            (built / "executable").write_text("replacement")
+            backup = root / "backup"
+            backup.mkdir()
+            replace = os.replace
+
+            def fail_replacement(source, destination):
+                if Path(source).name == "macarchy.app" and Path(destination) == installed:
+                    raise OSError("simulated replacement failure")
+                return replace(source, destination)
+
+            with patch.object(install, "run"), patch.object(install.os, "replace", side_effect=fail_replacement):
+                with self.assertRaises(OSError):
+                    install.install_app(built, installed, backup)
+            self.assertEqual((installed / "executable").read_text(), "original")
+
+    def test_failed_verification_leaves_original_bundle_in_place(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            installed = root / "Applications/macarchy.app"
+            installed.mkdir(parents=True)
+            (installed / "executable").write_text("original")
+            built = root / "built/macarchy.app"
+            built.mkdir(parents=True)
+            backup = root / "backup"
+            backup.mkdir()
+            with patch.object(install, "run", side_effect=OSError("invalid signature")):
+                with self.assertRaises(OSError):
+                    install.install_app(built, installed, backup)
+            self.assertEqual((installed / "executable").read_text(), "original")
+
+    def test_upgrade_preserves_xdg_config_without_creating_ambiguous_dotfile(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            xdg = home / "custom-config"
+            config = xdg / "macarchy/macarchy.toml"
+            config.parent.mkdir(parents=True)
+            config.write_text("# existing XDG configuration\n")
+            (home / ".aerospace.toml").write_text("# legacy configuration\n")
+            installed = home / "Applications/macarchy.app"
+            installed.mkdir(parents=True)
+            built = home / "built/macarchy.app"
+            built.mkdir(parents=True)
+            with patch.object(Path, "home", return_value=home), patch.object(install, "build_app", return_value=built), \
+                    patch.object(install, "run"), patch.object(install, "supports_safe_restart", return_value=False), \
+                    patch.dict(os.environ, {"XDG_CONFIG_HOME": str(xdg)}), \
+                    patch("sys.argv", ["install.py", "--build"]), contextlib.redirect_stdout(io.StringIO()):
+                install.main()
+            self.assertEqual(config.read_text(), "# existing XDG configuration\n")
+            self.assertFalse((home / ".macarchy.toml").exists())
 
 
 if __name__ == "__main__":

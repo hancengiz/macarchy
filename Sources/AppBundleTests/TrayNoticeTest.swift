@@ -94,23 +94,4 @@ final class TrayNoticeTest: XCTestCase {
         await fulfillment(of: [dismissed], timeout: 2)
     }
 
-    // MARK: Conflict notice content
-
-    func testConflictNoticeCompactWhenResolved() {
-        let notice = shortcutConflictNotice(model: ShortcutConflicts.shared)
-        XCTAssertEqual(notice.severity, .success)
-        XCTAssertTrue(notice.rows.isEmpty)
-        XCTAssertEqual(notice.actions.map(\.id), ["recheck"], "Resolved state must hide app-opening controls")
-    }
-
-    func testConflictNoticeListsRowsAndResolutionActions() {
-        let model = ShortcutConflicts.shared
-        model.update([ShortcutConflict(mode: "main", binding: "alt-t", reason: "Test")])
-        let notice = shortcutConflictNotice(model: model)
-        XCTAssertEqual(notice.severity, .warning)
-        XCTAssertEqual(notice.rows.count, 1)
-        XCTAssertEqual(notice.rows.first?.action?.id, "pause-main:alt-t")
-        XCTAssertEqual(Set(notice.actions.map(\.id)), ["keyboard-settings", "recheck"])
-        XCTAssertNotNil(notice.footer, "Checked time must be part of the notice")
-    }
 }

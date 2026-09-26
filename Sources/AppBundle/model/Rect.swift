@@ -61,5 +61,18 @@ extension Rect {
 
     var size: CGSize { CGSize(width: width, height: height) }
 
+    var cgRect: CGRect { CGRect(x: minX, y: minY, width: width, height: height) }
+
+    func fitted(to bounds: Rect) -> Rect {
+        let width = min(width, bounds.width)
+        let height = min(height, bounds.height)
+        return Rect(
+            topLeftX: min(max(minX, bounds.minX), bounds.maxX - width),
+            topLeftY: min(max(minY, bounds.minY), bounds.maxY - height),
+            width: width,
+            height: height,
+        )
+    }
+
     func getDimension(_ orientation: Orientation) -> CGFloat { orientation == .h ? width : height }
 }

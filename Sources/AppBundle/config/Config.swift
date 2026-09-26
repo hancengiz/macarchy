@@ -48,6 +48,7 @@ struct Config: ConvenienceMutable {
     var automaticallyUnhideMacosHiddenApps: Bool = false
     var accordionPadding: Int = 30
     var scrollingColumnWidth: Int = 49
+    var appWindowWidths: [String: Int] = [:]
     var mouseModifier: MouseModifier = .none
     var adoptNativeWindowResize = false
     var warnAboutShortcutConflicts = false

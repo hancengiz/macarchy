@@ -1,0 +1,48 @@
+= macarchy-save-app-width(1)
+include::util/man-attributes.adoc[]
+:manname: macarchy-save-app-width
+// tag::purpose[]
+:manpurpose: Remember the current app's preferred scrolling width
+// end::purpose[]
+
+== Synopsis
+[verse]
+// tag::synopsis[]
+macarchy save-app-width [-h|--help] [--window-id <window-id>]
+// end::synopsis[]
+
+== Description
+// tag::body[]
+Saves the selected window's width as a rounded integer percentage from 1 through
+100 in the active configuration's `[app-window-widths]` table, keyed by a quoted
+application bundle ID. Without `--window-id`, the focused window is selected.
+For scrolling columns, the logical requested width is used rather than a size
+imposed by the application. Tiled windows use their allocated width; floating
+windows use their width relative to the display's visible width.
+
+App preferences are resolved during layout, not only at restart. The saved target
+returns to the app default. Other manually resized windows retain their explicit
+overrides. Windows without overrides use the app preference, falling back to
+`scrolling-column-width`. `balance-sizes` clears manual overrides in the workspace.
+Defaults affect scrolling windows, not automatic floating-window sizing, and apps
+may still enforce minimum physical sizes.
+
+The default profile binds this command to `alt-ctrl-shift-w`
+(Option+Control+Shift+W). Tray *Settings…* -> *App Widths* also saves, edits, and
+removes preferences. Its save target is captured before Settings activates,
+so opening Settings does not replace the target with the Settings window.
+
+[source,toml]
+----
+[app-window-widths]
+'com.google.Chrome' = 75
+'company.thebrowser.dia' = 75
+'com.microsoft.VSCode' = 75
+----
+
+== Options
+-h, --help:: Print help.
+--window-id <window-id>::
+include::util/window-id-flag-desc.adoc[]
+// end::body[]
+include::util/man-footer.adoc[]

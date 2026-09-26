@@ -99,9 +99,7 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
         var items: [NSMenuItem] = []
 
         let shortIdentification = "\(appName) v\(appVersion) \(gitShortHash)"
-        let identification = "\(appName) v\(appVersion) \(gitHash)"
         items.append(header(shortIdentification))
-        items.append(action("Copy to clipboard", key: "c") { identification.copyToClipboard() })
         items.append(.separator())
 
         if viewModel.axPermissionStatus == .granted {
@@ -110,33 +108,8 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
                     Task { await activateMode_nonCancellable(omarchyMenuMode) }
                 })
             }
-            items.append(action("Check Shortcut Conflicts...") {
-                Task {
-                    await ShortcutConflicts.shared.recheck()
-                    ShortcutConflicts.shared.show()
-                }
-            })
-            items.append(action("Show Current Shortcuts...") {
-                MessageModel.shared.message = Message(
-                    type: .shortcuts,
-                    title: "Current Shortcuts",
-                    description: "Current Shortcuts",
-                    body: currentShortcutsDescription(config),
-                    containsWarnings: false,
-                )
-            })
             items.append(.separator())
 
-            if let token: RunSessionGuard = .isServerEnabled, viewModel.lastReloadConfigContainedWarnings {
-                items.append(action("Config contains warnings...", systemImage: "exclamationmark.triangle.fill") {
-                    Task.startUnstructured {
-                        try await runLightSession(.menuBarButton, token) {
-                            let args: ReloadConfigCmdArgs = ReloadConfigCmdArgs(rawArgs: []).copy(\.warningsAsErrors, true)
-                            _ = await reloadConfig_nonCancellable(args: args)
-                        }
-                    }
-                })
-            }
             if let token: RunSessionGuard = .isServerEnabled {
                 items.append(header("Workspaces:"))
                 for workspace in viewModel.workspaces {
@@ -165,38 +138,18 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
                 }
             })
 
-            items.append(header("Settings:"))
-            items.append(action("Mouse Edge Focus", state: config.enableMouseEdgeFocus ? .on : .off) {
-                toggleMouseEdgeFocusSetting()
-            })
-
-            let experimental = NSMenuItem(title: "Experimental UI Settings (No stability guarantees)", action: nil, keyEquivalent: "")
-            let styleMenu = NSMenu()
-            styleMenu.autoenablesItems = false
-            styleMenu.items = [header("Menu bar style:")] + MenuBarStyle.allCases.map { style in
-                action(style.title, state: viewModel.experimentalUISettings.displayStyle == style ? .on : .off) { [weak self] in
-                    viewModel.experimentalUISettings.displayStyle = style
-                    self?.refreshLabel()
-                }
-            }
-            experimental.submenu = styleMenu
-            items.append(experimental)
-
-            items.append(action("Open config in '\(getTextEditorToOpenConfig().lastPathComponent)'", key: ",") {
-                self.openConfigInEditor()
-            })
-            items.append(action("Reload config", key: "r") {
-                guard let token: RunSessionGuard = .isServerEnabled else { return }
-                Task.startUnstructured {
-                    try await runLightSession(.menuBarButton, token) {
-                        let args: ReloadConfigCmdArgs = ReloadConfigCmdArgs(rawArgs: []).copy(\.warningsAsErrors, false)
-                        _ = await reloadConfig_nonCancellable(args: args)
-                    }
-                }
-            })
         } else {
             items.append(header("macarchy requires accessibility permission to move windows"))
         }
+        items.append(action("Settings…", key: ",") {
+            SettingsWindow.shared.show()
+        })
+        items.append(action("Restart Macarchy…") {
+            Task { @MainActor in
+                do { try await restartMacarchy() }
+                catch { showSettingsError(error) }
+            }
+        })
 
         items.append(.separator())
         items.append(action("Quit \(appName)", key: "q") {
@@ -234,19 +187,6 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
         return item
     }
 
-    private func openConfigInEditor() {
-        let editor = getTextEditorToOpenConfig()
-        let fallbackConfig: URL = FileManager.default.homeDirectoryForCurrentUser.appending(path: configDotfileName)
-        switch findCustomConfigUrl() {
-            case .file(let url):
-                url.open(with: editor)
-            case .noCustomConfigExists:
-                _ = try? FileManager.default.copyItem(atPath: defaultConfigUrl.path, toPath: fallbackConfig.path)
-                fallbackConfig.open(with: editor)
-            case .ambiguousConfigError:
-                fallbackConfig.open(with: editor)
-        }
-    }
 }
 
 /// Retains the closure behind an NSMenuItem target-action pair while the menu is open.

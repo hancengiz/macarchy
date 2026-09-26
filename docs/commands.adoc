@@ -238,12 +238,26 @@ include::macarchy-resize.adoc[tags=synopsis]
 include::macarchy-resize.adoc[tags=purpose]
 include::macarchy-resize.adoc[tags=body]
 
+== restart
+----
+include::macarchy-restart.adoc[tags=synopsis]
+----
+include::macarchy-restart.adoc[tags=purpose]
+include::macarchy-restart.adoc[tags=body]
+
 == run-callback
 ----
 include::macarchy-run-callback.adoc[tags=synopsis]
 ----
 include::macarchy-run-callback.adoc[tags=purpose]
 include::macarchy-run-callback.adoc[tags=body]
+
+== save-app-width
+----
+include::macarchy-save-app-width.adoc[tags=synopsis]
+----
+include::macarchy-save-app-width.adoc[tags=purpose]
+include::macarchy-save-app-width.adoc[tags=body]
 
 == split
 ----

@@ -38,13 +38,12 @@ extension HotKey {
     for binding in targetBindings.values {
         let notation = binding.descriptionWithKeyNotation
         let mode = targetMode ?? mainModeId
-        if ShortcutConflicts.shared.isDisabled(mode: mode, binding: notation) { continue }
         if checkConflicts, let reason = shortcutRegistrationConflict(binding, systemCombos: systemCombos) {
             conflicts.append(ShortcutConflict(mode: mode, binding: notation, reason: reason))
             continue
         }
-        // App-level collisions are advisory: keep the binding registered, but
-        // surface the collision and a remap suggestion in the notice.
+        // App-level similarities are suggestions in Settings, not registration
+        // failures. They never suppress a binding or trigger an automatic notice.
         if checkConflicts,
            let reason = appShortcutConflict(
                combo: KeyCombo(key: binding.keyCode, modifiers: binding.modifiers),

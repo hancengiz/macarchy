@@ -1,10 +1,13 @@
 # Omarchy on macOS: Product Requirements and Agent Handoff
 
-_A historical handoff document. The project's current identity, names, and paths are **macarchy** — see the [README](../../README.md) for up-to-date information._
+_Historical implementation notes with current session, Settings, and upgrade
+contracts updated below. The project's identity, names, and paths are
+**macarchy** — see the [README](../README.md) for setup._
 
-Last updated: 2026-09-07, Europe/Istanbul.
+Feature-contract update: 2026-09-26. Older dated verification entries remain
+historical evidence, not claims that the current full test suite ran.
 
-## 0. Rebrand (2026-09-07, latest)
+## 0. Rebrand (2026-09-07)
 
 The project is now **macarchy** ("Omarchy-like tiling manager for macOS"), a
 fork of AeroSpace (MIT, © Nikita Bobko; LICENSE.txt retained). App bundle:
@@ -17,11 +20,12 @@ builds the app on every push to main and publishes releases on `v*` tags.
 
 ## 1. Read This First
 
-**The work is not finished.** The window-manager features and a system-mode HUD
-are installed. The user rejected the installed launcher and the oversized
-shortcut-conflict window. A replacement launcher prototype compiles in the
-working tree but is **not installed**. JSONC menu customization and a reusable,
-animated tray-anchored notification surface are **not implemented**.
+The current release is installed with a native JSONC launcher, compact tray
+notices, native **Settings…**, and session persistence. The tray Settings window
+has **General**, **App Widths**, and **Shortcuts** tabs. The old oversized
+conflict window and per-binding pause controls are no longer part of the UI.
+Automatic shortcut notices are reserved for actual failed registrations;
+advisory app-shortcut suggestions remain in Settings and do not disable bindings.
 
 Do not mistake checked implementation tasks below for user acceptance or complete
 live verification. Each area records its separate verification and acceptance status.
@@ -79,27 +83,24 @@ and describe it as exact parity.
 | Option-based profile | Installed | Implemented |
 | Active-window borders | JankyBorders installed and started | Helper/startup integration implemented |
 | System-mode shortcut overlay | Installed and visually checked | Implemented |
-| Conflict detection and Recheck feedback | Installed | Implemented; conflict presentation migrated to the tray notice surface |
-| Current-shortcuts menu entry | Installed | Implemented |
+| Shortcut registration diagnostics | Installed | Compact failure notices; details and Recheck in Settings |
+| Current shortcuts | Installed | Listed in Settings -> Shortcuts and the launcher's Keybindings section |
 | Option+Space menu | Installed: native data-driven launcher panel | Implemented; JSONC defaults + user extension |
 | Data-driven Omarchy menu customization | Installed (`menu.jsonc` sample + watcher) | Implemented |
 | Generic tray notification/popover component | Installed | Implemented (NSStatusItem anchor; conflicts, modifier-mouse, menu parse errors) |
+| Native Settings | Installed | General, App Widths, Shortcuts; edits saved to active config |
+| Session restore and layout-preserving Restart | Installed | Live-window matching, stable monitor UUIDs, durable save + fresh-process handoff |
 
 ### Installed Artifacts
 
-- App: `~/Applications/AeroSpace-Omarchy.app`.
-- Bundle identifier: `com.hancengiz.aerospace`.
-- Installed version label: `0.22.0-Omarchy`, snapshot build.
-- Fork CLI: `~/Applications/AeroSpace-Omarchy.app/Contents/Helpers/aerospace`.
-- Config: `~/.aerospace.toml`.
-- Helper: `~/.config/aerospace/omarchy/action`.
-- Generated reference: `~/.config/aerospace/omarchy/HOTKEYS.txt`.
-- Build artifact: `.local/AeroSpace-Omarchy.app`; rebuild before treating it as
-  matching the latest source.
-- Original Homebrew app remains at `/Applications/AeroSpace.app`; do not run both
-  window managers simultaneously. The Homebrew CLI talks to the upstream socket,
-  not the fork's socket.
-- Fork socket identity is separate: `/tmp/com.hancengiz.aerospace-<username>.sock`.
+- App: `~/Applications/macarchy.app`.
+- Bundle identifier: `com.hancengiz.macarchy`.
+- Fork CLI: `~/Applications/macarchy.app/Contents/Helpers/macarchy`.
+- Config: `~/.macarchy.toml` or the configured XDG location.
+- Helper/menu: `~/.config/macarchy/`.
+- Session: `~/Library/Application Support/macarchy/session.json`.
+- Do not run another window manager simultaneously. The fork has its own
+  socket identity; the upstream Homebrew CLI does not address it.
 
 **Drift resolved 2026-09-07 evening:** the installed config now matches the
 repository template (`alt-space = 'mode omarchy-menu'`), the installed binary
@@ -141,7 +142,8 @@ other. The app executable belongs in `Contents/MacOS`; CLI in `Contents/Helpers`
 - [x] Keep per-column width overrides and per-container viewport offset.
 - [x] Reveal the focused column with the smallest necessary horizontal movement.
 - [x] Preserve widths of partially visible neighboring columns.
-- [x] Park fully offscreen columns using the tiling engine's corner-hiding mechanism.
+- [x] Park fully hidden columns by minimizing rectangle intersection across all
+  displays; never move native-fullscreen windows during parking.
 - [x] Restore offscreen columns when focused and when management is disabled.
 - [x] Toggle scrolling/horizontal tiles on the same workspace with Option+L.
 - [x] Keep the scrolling strip horizontal. Option+J now binds to
@@ -164,9 +166,72 @@ Implementation: `tree/TilingContainer.swift`, `tree/TreeNode.swift`,
 `command/impl/ResizeCommand.swift`, `command/impl/BalanceSizesCommand.swift` under
 `Sources/AppBundle`, plus `Sources/Common/cmdArgs/impl/LayoutCmdArgs.swift`.
 
-Widths/offsets are in memory, not persisted across app restarts. Per-monitor
-compositor clipping and smooth Hyprland scrolling animation are not implemented.
-Adjacent displays can expose overflow; apps can enforce minimum sizes.
+Workspace trees, window order, widths, viewport offsets, display assignments,
+and focus are persisted in
+`~/Library/Application Support/macarchy/session.json`. Startup restores live
+windows only, using exact process/window identity or an unambiguous
+bundle-ID/title match across relaunch. It never launches closed apps or assigns
+ambiguous matches arbitrarily. Monitors use stable UUIDs, with the first monitor
+as fallback when the saved display is absent.
+
+`macarchy restart` and tray **Restart** save and relaunch without the normal
+**Quit** rearrangement. The initial in-place restart preserved all eight AX/CG
+frames and workspace trees, but did not preserve the visible menu-bar item.
+The subsequent missing-icons report traced this to in-place executable replacement:
+Macarchy's status item was at (-1, 792), while a fresh launch restored it to
+(1459, 3) with workspace trees unchanged. Restart now waits for the old process
+to exit before starting a fresh process, retaining arguments and environment.
+
+The installed fresh-process path passed both CLI and tray-menu restarts:
+each produced a new PID, retained all five currently listed window frames and
+workspace trees, and kept the status item at (1459, 3). The CLI scenario also
+checked unchanged focus and configuration contents. Icon rendering itself was
+not redesigned; the fix is in `restartMacarchy.swift`.
+
+Separate single-window AppKit fixtures passed the scrolling boundary check:
+left-column widths 1531, 1831, and 1889 kept the right column at x=1551, 1851,
+and 1909 on the 1920-point main display; width 1890 parked it instead.
+The parked frame intersected neither the main nor the right-hand display.
+macOS can constrain parking coordinates and leave a one-point-wide strip on
+the bottom display; this is not compositor-level invisibility. The existing
+native-fullscreen window remained unchanged during the initial boundary run.
+A 2036×1200 floating fixture fitted to 1920×774 when moved to the smaller display.
+
+Per-monitor compositor clipping and smooth Hyprland scrolling are intentionally
+not implemented. Partially visible columns keep true desktop-wide positions;
+adjacent displays can expose overflow, and apps can enforce minimum sizes.
+The original early-hide report is not established as definitively fixed.
+
+### SETTINGS-01: Native Settings and App Width Defaults
+
+Open tray **Settings…** for General, App Widths, and Shortcuts. Settings writes
+to the active TOML configuration; advanced options remain available through
+**Open Configuration…**. Mouse-edge focus defaults to
+`enable-mouse-edge-focus = false`. Vertical **outer** gaps (top/bottom) default
+to zero; inner gaps remain independent.
+
+`[app-window-widths]` maps quoted bundle IDs to integer percentages from 1
+through 100:
+
+```toml
+[app-window-widths]
+'com.google.Chrome' = 75
+'com.microsoft.VSCode' = 75
+```
+
+Scrolling windows resolve app defaults during layout, falling back to
+`scrolling-column-width` (49 by default; range 10–100). Explicit manual window
+widths take precedence. `balance-sizes` clears manual overrides in the workspace
+and returns windows to app defaults or the fallback.
+
+`macarchy save-app-width [--window-id <window-id>]` saves the selected window's
+width; without a window ID it uses the focused window. The default profile
+binds it to `alt-ctrl-shift-w` (Option+Control+Shift+W). Saving clears only the
+target's manual scrolling override. Settings captures that target before
+activating its own window, and also supports editing/removing saved defaults.
+Capture uses the logical requested scrolling width, allocated tiled width, or
+floating width relative to the display's visible width. Defaults affect
+scrolling, not automatic floating sizing; app minimum sizes still apply.
 
 ### KEY-01: Omarchy-Inspired Shortcuts Without Command Conflicts
 
@@ -201,10 +266,11 @@ Relevant final keys:
 | Option+Shift+1...0 | Move window and follow |
 | Option+S or backtick | Scratch workspace |
 | Option+Shift+Esc | Enter/exit system-controls mode |
-| Option+Space | Desktop menu, currently being replaced |
+| Option+Space | Native JSONC desktop menu |
 | Option+K | Generated shortcut reference |
 | Option+semicolon | Toggle pass-through mode |
 | Option+Control+R | Reload config |
+| Option+Control+Shift+W | Save current app width as its scrolling default |
 
 Option+Esc is macOS's default Speak Selection shortcut, not app-window cycling.
 Command+grave accent cycles windows of the front app. A fresh Carbon symbolic-key
@@ -230,6 +296,13 @@ VoiceOver and accessibility interactions need particular care.
 - [ ] Perform live left/right modifier-drag tests across app types and monitors.
 - [ ] Stress native resize notification races, app size constraints, and repeated
   resize/move cycles; unit coverage is not proof that every app avoids snapping.
+
+Manager-written AX sizes are acknowledged using the actual app-constrained
+result, so their notifications do not rewrite logical column widths. Genuine
+native changes adopt the observed dimension only on the changed axes. A live
+fixture retained logical width 100 while enforcing physical minimum 200;
+an external resize to 260 then remained logical/physical 260 instead of snapping
+back to 200. This is scoped constraint/feedback evidence, not every app's timing.
 
 Implementation: `Sources/AppBundle/mouse/ManagedResize.swift`, `ModifierMouse.swift`,
 `moveWithMouse.swift`, `resizeWithMouse.swift`, and `GlobalObserver.swift`.
@@ -257,21 +330,19 @@ This is an optional macOS 14+ companion, not AeroSpace compositor support.
 - [x] Check enabled macOS symbolic shortcuts and exclusive Carbon reservations.
 - [x] Release our registrations before probing to avoid self-conflicts.
 - [x] Detect on mode activation/reload and periodically in idle main mode.
-- [x] Pause detectable conflicting AeroSpace bindings; do not alter other apps.
-- [x] Deduplicate warnings and preserve configuration diagnostics.
-- [x] Offer Recheck, Pause in AeroSpace, app/settings/config access.
-- [x] Keep Check Shortcut Conflicts and Show Current Shortcuts in the menu bar.
+- [x] Report actual failed registrations as inactive; do not alter other apps.
+- [x] Deduplicate compact automatic notices and preserve config diagnostics.
+- [x] Put Recheck, Keyboard Settings, current bindings, and detailed diagnostics
+  in native Settings -> Shortcuts.
+- [x] Keep advisory app-shortcut suggestions Settings-only; these bindings stay
+  active and do not trigger automatic notices.
 - [x] Show check time, no-conflict status, and reasons checking is unavailable.
 - [x] Allow manual checking when automatic warnings are disabled.
-- [x] Test a real Carbon reservation, probe cleanup, reset, resolution, and dedup.
-- [ ] Replace the rejected window with the compact tray surface in UI-04.
 - [ ] Test conflict removal in a second app followed by Recheck end to end.
-- [ ] Improve paused-state visibility and make restoration discoverable; currently
-  manual pauses are session-only and reset on config reload.
 
 Implementation: `Sources/AppBundle/config/ShortcutConflicts.swift`,
-`config/HotkeyBinding.swift`, `ui/ShortcutConflictList.swift`, `ui/MessageView.swift`,
-`ui/MenuBar.swift`, `ui/currentShortcutsDescription.swift`.
+`config/HotkeyBinding.swift`, `ui/SettingsWindow.swift`, `ui/TrayStatusItem.swift`,
+`ui/currentShortcutsDescription.swift`.
 
 Detection is best-effort. macOS exposes neither all event-tap/app-local shortcuts
 nor a universal owner lookup or removal API. A registration race remains possible.
@@ -348,10 +419,10 @@ ported from `MenuModel.js`/`docs/menu.md` semantics (see §6):
 `MenuBarExtra` was replaced by a manual `NSStatusItem` (`ui/TrayStatusItem.swift`)
 because MenuBarExtra hides its status item and cannot anchor anything. The
 status item renders the same `MenuBarLabel` via ImageRenderer, exposes the
-exact button frame as the anchor, and provides the full menu (identification,
-copy, Omarchy menu, conflicts, current shortcuts, config warnings, workspaces
-with checkmarks, sponsor, enable/disable, experimental style picker, config
-editor, reload, quit) as a native NSMenu rebuilt on every open.
+exact button frame as the anchor, and exposes the native tray menu, including
+**Settings…**, configuration access/reload, workspace controls, **Restart**, and
+**Quit**. Shortcut diagnostics and app suggestions live in Settings -> Shortcuts,
+not a separate conflict HUD or pause menu.
 
 - [x] `ui/TrayNotice.swift`: generic `TrayNotice` model (severity, message,
   rows with per-row actions, footer, optional lifetime, custom section),
@@ -362,12 +433,11 @@ editor, reload, quit) as a native NSMenu rebuilt on every open.
   animation end-state, global+local mouse monitors and Escape-observe
   dismissal that ignores clicks inside the panel, screen-rearrangement
   re-anchoring).
-- [x] Conflicts migrated: warning notices with per-conflict Pause rows,
-  Keyboard Settings/Recheck actions, "Open App…" running-apps menu only when
-  conflicts exist, compact success state (Recheck only) when resolved,
-  checked-time footer stable across monitor cycles, dedup so periodic checks
-  never re-open a dismissed notice. Manual reopen via Check Shortcut
-  Conflicts. The rejected `ShortcutConflictList` window is deleted.
+- [x] Actual failed registrations produce compact notices linking to Settings.
+  Deduplication prevents periodic checks from reopening dismissed notices;
+  resolved state can update a visible notice. Advisory app-shortcut suggestions
+  remain Settings-only. Per-conflict pause rows and the rejected standalone
+  conflict window are removed.
 - [x] Reused for two more notice types: modifier-mouse-gesture failure (was a
   window auto-open; now a warning notice with Accessibility Settings/Retry)
   and menu.jsonc parse errors (error notice with Open menu.jsonc).
@@ -380,9 +450,9 @@ editor, reload, quit) as a native NSMenu rebuilt on every open.
   whenever the user closed a popup.
 - [x] Live: installed app survived a 90s soak through three conflict-check
   cycles with mode toggles; CLI socket and AX window listing verified.
-- [ ] Live pixel verification blocked as above; user reported an "empty popup"
-  against the first broken build — render path hardened (stable hosting view,
-  forced end-state) but visual confirmation is still owed.
+- [x] Codex vision checked the actual 420×170 reserved-shortcut conflict notice:
+  title, message, controls, and Review in Settings button were fully visible.
+  General, App Widths, and Shortcuts screenshots also showed no confirmed clipping.
 
 Installer repairs done with regression coverage in `omarchy/test_install.py`:
 `--stock` no longer references `omarchy-menu` anywhere; `--leader` maps
@@ -444,15 +514,28 @@ Key findings already gathered:
 
 ## 7. Verification, Gaps, and Build Commands
 
-Latest recorded Swift run: **431 tests passed, zero failures** (405 baseline
+Historical Swift run: **431 tests passed, zero failures** (405 baseline
 + 10 TrayNoticeTest + 16 OmarchyMenuDataTest, with ShortcutConflictsTest
 migrated to notice semantics), at 19:12 on 2026-09-07. Log:
 `/tmp/aerospace-fix-build.log`.
 
-The Python installer suite was rerun during this handoff: **2 tests passed**.
+During the historical 2026-09-07 handoff, the Python installer suite recorded
+**2 tests passed**.
 Earlier shell syntax checks and `git diff --check` passed. These checks do not
 establish UI acceptance, installation correctness for the new menu, or complete
 live mouse/multi-monitor behavior.
+
+For the current release, full Xcode/XCTest was unavailable; no current full-suite
+pass is claimed. The release builds with Command Line Tools. Installed live
+checks confirmed native Settings opens with General/App Widths/Shortcuts,
+layout-preserving restart (details in WM-02), and byte-for-byte preservation of
+the existing configuration during upgrade.
+Additional live checks exercised Settings Save Width, floating-width capture,
+per-app layout defaults, and the actual Option+Control+Shift+W shortcut.
+Temporary fixture preferences were removed without replacing existing app
+preferences. Standalone executables exercised the production session matcher
+and atomic store, plus the production monitor-resolution methods against live
+display UUIDs and a missing UUID. No physical monitor-disconnect test was run.
 
 Focused added tests:
 
@@ -469,14 +552,13 @@ Commands, from the repository root:
 
 ```sh
 env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
-python3 -m unittest discover -s omarchy -p 'test_*.py'
-bash -n omarchy/action
-git diff --check
-env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 omarchy/install.py --build-only
+python3 -m unittest discover -s macarchy -p 'test_*.py'
+bash -n macarchy/action
+python3 macarchy/install.py --build-only
 ```
 
-Use full Xcode: Command Line Tools alone did not supply XCTest. Bash 5 is installed
-at `/opt/homebrew/bin/bash`; system Bash 3 cannot run all generation scripts.
+Full Xcode is needed for XCTest, not release builds: Command Line Tools can build
+the current release. Bash 5 is required; system Bash 3 cannot run all generation scripts.
 The installer invokes the correct Bash and uses release `-Xswiftc -DOMARCHY`.
 The repo formatter is `.deps/swiftformat/swiftformat`; format only touched files.
 Generated `Sources/Common/versionGenerated.swift` was restored to its original
@@ -502,13 +584,17 @@ Useful live commands after installing a matching binary/profile:
 
 ## 8. Installation Safety and Rollback
 
-- Build completely before stopping/replacing the running app. Verify the PID,
-  stop only the fork, back up the app/config/helpers, and install matching pieces.
-- `--build` and `--profile-only` overwrite the home profile with the template.
-  Inspect and preserve user edits; do not use them blindly during iteration.
-- Ad-hoc signing changes the designated code hash each build. macOS may revoke
-  Accessibility; the app waits before starting its socket. Connection refused
-  can therefore mean missing permission rather than a crash.
+- Build, stage, and verify the signed app before replacing the installation;
+  back up the existing app/config/helpers.
+- `python3 macarchy/install.py --build` preserves existing configuration and
+  Settings. It calls `macarchy restart` when the old version supports it.
+  A legacy version without restart support needs a one-time manual quit and
+  launch of the new app; no unsupported signal is sent.
+- `--profile-only` explicitly replaces the profile after backing it up.
+  `--build-only` builds/signs without installing or changing the desktop.
+- Signing prefers an available local Developer ID Application identity, with
+  ad-hoc fallback. Ad-hoc rebuilds may require a new Accessibility grant; a
+  missing grant can delay the socket rather than indicate a crash.
 - Do not bypass TCC, disable SIP, or grant security permissions silently.
 - Permission policy changed during the session. At handoff the workspace is
   writable, but home config, installed apps, GUI launching, network operations,
@@ -555,7 +641,7 @@ apps or remove all newly introduced helper files; inspect before using it.
 These fall under the user's broad request to go beyond the initial setup, but
 should not displace the explicit UI priorities above:
 
-- [ ] Review pseudo-tiling, pinning, group semantics, and saved/restored widths.
+- [ ] Review pseudo-tiling, pinning, and group semantics.
   Option+P currently balances sizes; it is not Omarchy's pseudo-window behavior.
 - [ ] Assess modifier+wheel workspace/group navigation.
 - [ ] Assess true overlay scratchpad vs. the current scratch workspace.
@@ -564,7 +650,8 @@ should not displace the explicit UI priorities above:
 - [ ] Centralize theme/style customization across launcher, HUD, tray surfaces,
   and border companion without inventing fake Linux theme propagation.
 - [ ] Review application defaults and helper fallbacks against installed Mac apps.
-- [ ] Consider width/viewport persistence and a stable signing/update workflow.
+- [x] Persist widths/viewport state and preserve settings during upgrades;
+  prefer stable local signing with ad-hoc fallback.
 
 Exact compositor clipping, complete Hyprland grouping, every Quickshell plugin,
 Linux package management, and universal shortcut-owner/removal APIs are not

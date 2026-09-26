@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the fork's desktop profile, or restore a previous installation."""
+"""Build/upgrade Macarchy without resetting settings, or explicitly install/restore a profile."""
 import argparse
 import datetime
 import json
@@ -12,6 +12,7 @@ import tempfile
 import tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_BUILD_VERSION = "0.22.1"
 
 
 def run(*args, **kwargs):
@@ -59,11 +60,11 @@ def hotkeys(text):
     return "\n".join(lines) + "\n"
 
 
-def build_app():
+def build_app(build_version=DEFAULT_BUILD_VERSION):
     bash = shutil.which("bash", path="/opt/homebrew/bin:/usr/local/bin")
     if not bash:
         raise SystemExit("Install Bash 5 first: brew install bash")
-    run(bash, str(ROOT / "generate.sh"), "--ignore-xcodeproj", "--build-version", "0.22.0-Omarchy", cwd=ROOT)
+    run(bash, str(ROOT / "generate.sh"), "--ignore-xcodeproj", "--build-version", build_version, "--generate-git-hash", cwd=ROOT)
     run("swift", "build", "-c", "release", cwd=ROOT)
     bin_dir = Path(subprocess.check_output(["swift", "build", "-c", "release", "--show-bin-path"], cwd=ROOT, text=True).strip())
     destination = ROOT / ".local" / "macarchy.app"
@@ -81,13 +82,15 @@ def build_app():
     info = {
         "CFBundleExecutable": "macarchy", "CFBundleIdentifier": "com.hancengiz.macarchy",
         "CFBundleName": "macarchy", "CFBundlePackageType": "APPL",
-        "CFBundleIconFile": "AppIcon", "CFBundleShortVersionString": "0.22.0", "CFBundleVersion": "1",
+        "CFBundleIconFile": "AppIcon", "CFBundleShortVersionString": build_version.split("-", 1)[0],
+        "CFBundleVersion": build_version.split("-", 1)[0],
         "LSMinimumSystemVersion": "13.0", "LSUIElement": True,
         "NSAppleEventsUsageDescription": "Launch applications from your configured shortcuts.",
     }
     with (contents / "Info.plist").open("wb") as file:
         plistlib.dump(info, file)
     run("codesign", "--force", "--deep", "--sign", codesign_identity(), str(destination))
+    run("codesign", "--verify", "--deep", "--strict", str(destination))
     print(f"Built {destination}")
     return destination
 
@@ -103,23 +106,78 @@ def codesign_identity():
     return "-"
 
 
+def supports_safe_restart(cli):
+    """Probe the OLD helper before replacing it; never signal an unknown version."""
+    if not cli.is_file():
+        return False
+    try:
+        result = subprocess.run([str(cli), "restart", "--help"], capture_output=True, text=True, timeout=10)
+        return result.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def install_app(app, installed, backup):
+    """Stage and verify first, then swap; restore the original on swap failure."""
+    installed.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".macarchy-install-", dir=installed.parent) as directory:
+        staging = Path(directory) / app.name
+        previous = Path(directory) / "previous.app"
+        shutil.copytree(app, staging)
+        run("codesign", "--verify", "--deep", "--strict", str(staging))
+        if installed.exists():
+            shutil.copytree(installed, backup / app.name)
+            os.replace(installed, previous)
+        try:
+            os.replace(staging, installed)
+        except BaseException:
+            if previous.exists():
+                os.replace(previous, installed)
+            raise
+
+
+def restart_installed_app(installed, supported):
+    if not supported:
+        print("This previous version cannot restart safely. No signal was sent.")
+        print(f"One-time manual step: quit the previous version, then open {installed}.")
+        return
+    try:
+        result = subprocess.run(
+            [str(installed / "Contents/Helpers/macarchy"), "restart"],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode == 0:
+            print(result.stdout.strip() or "Restart requested; the saved window session will be restored.")
+            return
+        detail = result.stderr.strip() or result.stdout.strip()
+    except (OSError, subprocess.SubprocessError) as error:
+        detail = str(error)
+    print(f"Safe restart was not completed: {detail}")
+    print(f"No process was killed. If Macarchy is not running, open {installed}.")
+
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--leader", action="store_true", help="Use F18, then an unmodified key; suitable with VoiceOver")
-    parser.add_argument("--build", action="store_true", help="Build and install the fork as a separate app")
-    parser.add_argument("--build-only", action="store_true", help="Build the app without changing your desktop")
-    parser.add_argument("--profile-only", action="store_true", help="Update shortcuts for an already installed fork")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--build", action="store_true", help="Build/sign and upgrade the app; preserve existing config and Settings")
+    mode.add_argument("--build-only", action="store_true", help="Build/sign the app without changing your desktop")
+    mode.add_argument("--profile-only", action="store_true", help="Explicitly replace the installed fork's config with this profile (backs up first)")
+    parser.add_argument("--build-version", default=DEFAULT_BUILD_VERSION, help="App and CLI version to embed when building")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--restore", type=Path, help="Restore a backup directory printed during installation")
     args = parser.parse_args()
     home = Path.home()
     config = home / ".macarchy.toml"
+    xdg_config = Path(os.environ.get("XDG_CONFIG_HOME", home / ".config")) / "macarchy/macarchy.toml"
+    if not config.exists() and xdg_config.exists():
+        config = xdg_config
     helper = home / ".config/macarchy"
     if args.restore:
         backup = args.restore.expanduser().resolve()
         manifest = json.loads((backup / "manifest.json").read_text())
+        config = Path(manifest.get("configPath", str(config)))
         if args.dry_run:
             print(f"Would restore {config} and {helper} from {backup}")
             return
@@ -136,21 +194,27 @@ def main():
         return
     text = profile(args.leader)
     if args.dry_run:
-        print(text)
+        if args.build and config.exists():
+            print(f"Would build/sign and upgrade the app, preserving {config} and all Settings.")
+        else:
+            print(text)
         return
-    app = build_app() if args.build or args.build_only else None
+    app = build_app(args.build_version) if args.build or args.build_only else None
     if args.build_only:
         return
     if args.profile_only and not (home / "Applications/macarchy.app/Contents/Helpers/macarchy").is_file():
         parser.error("The fork is not installed yet. Use --build first")
     if not app and not args.profile_only:
         parser.error("Use --build to build and install, or --profile-only to update an installed fork")
+    installed = home / "Applications/macarchy.app"
+    upgrading = installed.exists()
+    restart_supported = supports_safe_restart(installed / "Contents/Helpers/macarchy") if app and upgrading else False
     # Migrate legacy AeroSpace-Omarchy-era paths once, preserving user data.
     migrate_legacy_paths(home)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     backup = home / ".config/macarchy/backups" / stamp
     backup.mkdir(parents=True)
-    manifest = {}
+    manifest = {"configPath": str(config)}
     for name, target in [("macarchy.toml", config), ("macarchy", helper)]:
         manifest[name] = target.exists()
         if target.is_dir():
@@ -166,21 +230,30 @@ def main():
     if not menu.exists():
         # Never overwrite user menu customizations; a missing sample installs fresh.
         shutil.copy2(ROOT / "macarchy/menu.jsonc.sample", menu)
-    (helper / "HOTKEYS.txt").write_text(hotkeys(text))
-    with tempfile.NamedTemporaryFile(mode="w", dir=config.parent, delete=False) as file:
-        file.write(text)
-        temporary = file.name
-    os.replace(temporary, config)
+    replace_profile = args.profile_only or (not config.exists() and not upgrading)
     if app:
-        installed = home / "Applications" / app.name
-        if installed.exists():
-            shutil.copytree(installed, backup / app.name)
-        shutil.copytree(app, installed, dirs_exist_ok=True)
-        run("defaults", "write", "com.hancengiz.macarchy", "displayStyle", "-string", "i3Ordered")
+        install_app(app, installed, backup)
         print(f"App: {installed}")
-        print("Quit the existing window manager, then open this app and grant Accessibility access.")
         print(f"Fork CLI: {installed}/Contents/Helpers/macarchy")
-    print(f"Installed: {config}")
+    if replace_profile:
+        config.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(mode="w", dir=config.parent, delete=False) as file:
+            file.write(text)
+            temporary = file.name
+        try:
+            os.replace(temporary, config)
+        finally:
+            Path(temporary).unlink(missing_ok=True)
+        print(f"Installed profile: {config}")
+    else:
+        print(f"Preserved existing configuration and Settings (profile not replaced): {config}")
+    if replace_profile:
+        (helper / "HOTKEYS.txt").write_text(hotkeys(text))
+    if app:
+        if upgrading:
+            restart_installed_app(installed, restart_supported)
+        else:
+            print(f"Open {installed} and grant Accessibility access. Existing window managers were not stopped.")
     print(f"Backup: {backup}")
     print(f"Restore: python3 macarchy/install.py --restore {backup}")
 
@@ -193,8 +266,9 @@ def migrate_legacy_paths(home):
     legacy_config = home / ".aerospace.toml"
     legacy_helper = home / ".config/aerospace/omarchy"
     config = home / ".macarchy.toml"
+    xdg_config = Path(os.environ.get("XDG_CONFIG_HOME", home / ".config")) / "macarchy/macarchy.toml"
     helper = home / ".config/macarchy"
-    if legacy_config.exists() and not config.exists():
+    if legacy_config.exists() and not config.exists() and not xdg_config.exists():
         os.replace(legacy_config, config)
     if legacy_helper.exists() and not helper.exists():
         helper.parent.mkdir(parents=True, exist_ok=True)

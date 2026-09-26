@@ -9,6 +9,7 @@ func scheduleCancellableCompleteRefreshSession(
     _ event: RefreshSessionEvent,
     optimisticallyPreLayoutWorkspaces: Bool = false,
 ) {
+    guard isUnitTest || !SessionState.shared.isRestoring else { return }
     activeRefreshTask?.cancel()
     activeRefreshTask = Task.startUnstructured { @MainActor in
         try checkCancellation()
@@ -47,6 +48,7 @@ func runHeavyCompleteRefreshSession(
             refreshSystemModePanel()
             try await normalizeLayoutReason()
             if shouldLayoutWorkspaces { try await layoutWorkspaces() }
+            SessionState.shared.scheduleSave()
         }
     }
     switch res {
@@ -74,6 +76,7 @@ func runLightSession<T>(
 
         await refreshModel_nonCancellable()
         let result = try await body()
+        if isMacarchyRestartPrepared { return result }
         await refreshModel_nonCancellable()
 
         let focusAfter = focus.windowOrNil
@@ -96,6 +99,7 @@ func runLightSession<T>(
             }
         }
         if !event.isFocusFollowsMouse { scheduleCancellableCompleteRefreshSession(event) }
+        SessionState.shared.scheduleSave()
         return result
     }
 }
@@ -169,10 +173,6 @@ func refreshObs(_: AXObserver, _: AXUIElement, notif: CFString, _: UnsafeMutable
     }
 }
 
-enum OptimalHideCorner {
-    case bottomLeftCorner, bottomRightCorner, belowBottomEdge
-}
-
 @MainActor
 private func layoutWorkspaces() async throws {
     if !TrayMenuModel.shared.isEnabled {
@@ -183,57 +183,18 @@ private func layoutWorkspaces() async throws {
         return
     }
     let monitors = monitorInfos
-    var monitorToOptimalHideCorner: [CGPoint: OptimalHideCorner] = [:]
-    for monitor in monitors {
-        let xOff = monitor.width * 0.1
-        let yOff = monitor.height * 0.1
-        let minX = monitor.rect.minX
-        let maxX = monitor.rect.maxX
-        let maxY = monitor.rect.maxY
-
-        func contains(_ monitor: MonitorInfo, _ point: CGPoint) -> Int { monitor.rect.contains(point) ? 1 : 0 }
-        func score(_ points: [CGPoint]) -> Int { monitors.sumOfInt { m in points.reduce(0) { $0 + contains(m, $1) } } }
-
-        // Parked windows extend past the monitor edge in the parking direction.
-        // A corner is safe only if the space just beyond it belongs to no other
-        // monitor; otherwise the "hidden" window renders (and flickers) there.
-        let brcScore = score([
-            CGPoint(x: maxX + 2, y: maxY - 2), // right neighbor
-            CGPoint(x: maxX + 2, y: maxY - yOff),
-            CGPoint(x: maxX - xOff, y: maxY + 2), // monitor below
-        ])
-        let blcScore = score([
-            CGPoint(x: minX - 2, y: maxY - 2), // left neighbor
-            CGPoint(x: minX - 2, y: maxY - yOff),
-            CGPoint(x: minX + xOff, y: maxY + 2),
-        ])
-        let belowScore = score([
-            CGPoint(x: minX + xOff, y: maxY + 2),
-            CGPoint(x: (minX + maxX) / 2, y: maxY + 2),
-            CGPoint(x: maxX - xOff, y: maxY + 2),
-        ])
-
-        let corner: OptimalHideCorner = if belowScore < min(brcScore, blcScore) {
-            .belowBottomEdge // both side corners leak into neighbors; drop below instead
-        } else if blcScore < brcScore {
-            .bottomLeftCorner
-        } else {
-            .bottomRightCorner // historical default, incl. single-monitor ties
-        }
-        monitorToOptimalHideCorner[monitor.rect.topLeftCorner] = corner
-    }
+    let displayFrames = monitors.map { $0.rect.cgRect }
 
     // to reduce flicker, first unhide visible workspaces, then hide invisible ones
     for monitor in monitors {
         let workspace = monitor.activeWorkspace
         workspace.allLeafWindowsRecursive.filter { !$0.isOutsideScrollingViewport }
             .forEach { ($0 as! MacWindow).unhideFromCorner() } // todo as!
-        try await workspace.layoutWorkspace(hideCorner: monitorToOptimalHideCorner[monitor.rect.topLeftCorner] ?? .bottomRightCorner)
+        try await workspace.layoutWorkspace(displayFrames: displayFrames)
     }
     for workspace in Workspace.all where !workspace.isVisible {
-        let corner = monitorToOptimalHideCorner[workspace.workspaceMonitor.rect.topLeftCorner] ?? .bottomRightCorner
         for window in workspace.allLeafWindowsRecursive {
-            try await (window as! MacWindow).hideInCorner(corner) // todo as!
+            try await (window as! MacWindow).hideInCorner(displayFrames) // todo as!
         }
     }
 }

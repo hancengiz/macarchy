@@ -20,14 +20,10 @@ final class ShortcutConflicts: ObservableObject {
     @Published private(set) var lastChecked: Date?
     @Published private(set) var checkStatus: String?
     @Published private(set) var isChecking = false
-    private var disabled: Set<String> = []
     private var announced: Set<String> = []
     private var monitor: Task<Void, Never>?
 
-    func isDisabled(mode: String, binding: String) -> Bool { disabled.contains("\(mode):\(binding)") }
-
     func reset() {
-        disabled = []
         announced = []
         conflicts = []
         lastChecked = nil
@@ -39,7 +35,7 @@ final class ShortcutConflicts: ObservableObject {
         self.conflicts = conflicts.sorted { $0.id < $1.id }
         lastChecked = Date()
         checkStatus = nil
-        let ids = Set(conflicts.map(\.id))
+        let ids = Set(conflicts.filter { !$0.advisory }.map(\.id))
         let newConflicts = !ids.subtracting(announced).isEmpty
         announced = ids
         // Refresh a visible notice in place so Recheck results update without re-sliding.
@@ -49,11 +45,6 @@ final class ShortcutConflicts: ObservableObject {
 
     func show() {
         NoticeCenter.shared.post(shortcutConflictNotice(model: self))
-    }
-
-    func disable(_ conflict: ShortcutConflict) async {
-        disabled.insert(conflict.id)
-        await recheck()
     }
 
     func recheck() async {
@@ -77,13 +68,7 @@ final class ShortcutConflicts: ObservableObject {
         await activateMode_nonCancellable(activeMode, forceConflictCheck: true)
     }
     private func refreshVisibleNotice() {
-        var notice = shortcutConflictNotice(model: self)
-        if let current = NoticeCenter.shared.current, current.id == shortcutConflictNoticeId {
-            // Keep the visible notice's footer so unchanged data dedups to a no-op
-            // instead of re-rendering on every monitor cycle's fresh timestamp.
-            notice.footer = current.footer
-        }
-        NoticeCenter.shared.refreshIfShown(id: shortcutConflictNoticeId, notice: notice)
+        NoticeCenter.shared.refreshIfShown(id: shortcutConflictNoticeId, notice: shortcutConflictNotice(model: self))
     }
 
     func syncMonitor() {
@@ -126,45 +111,19 @@ let shortcutConflictNoticeId = "shortcut-conflicts"
 
 @MainActor
 func shortcutConflictNotice(model: ShortcutConflicts) -> TrayNotice {
-    let hasConflicts = !model.conflicts.isEmpty
-    let checking = model.isChecking
-    let rows: [TrayNoticeRow] = model.conflicts.map { conflict in
-        TrayNoticeRow(
-            title: conflict.binding,
-            detail: conflict.reason,
-            action: conflict.advisory ? nil : TrayNoticeAction(
-                id: "pause-\(conflict.id)",
-                label: "Pause",
-                tooltip: "Pauses this binding until config reload",
-                handler: { Task { @MainActor in await model.disable(conflict) } },
-            ),
-        )
-    }
-    var actions: [TrayNoticeAction] = []
-    if hasConflicts {
-        actions.append(TrayNoticeAction(id: "keyboard-settings", label: "Keyboard Settings", tooltip: "Open macOS Keyboard settings") {
-            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension").orDie())
-        })
-    }
-    actions.append(TrayNoticeAction(id: "recheck", label: checking ? "Checking…" : "Recheck", tooltip: "Re-run shortcut conflict detection") {
-        Task { @MainActor in await model.recheck() }
-    })
-    var footer: [String] = []
-    if let date = model.lastChecked { footer.append("Checked \(date.formatted(date: .omitted, time: .standard))") }
-    if let status = model.checkStatus { footer.append(status) }
-    let extra: AnyView? = hasConflicts ? AnyView(RunningAppsMenu()) : nil
+    let count = model.conflicts.filter { !$0.advisory }.count
     return TrayNotice(
         id: shortcutConflictNoticeId,
-        severity: checking ? .info : (hasConflicts ? .warning : .success),
-        title: checking ? "Checking shortcuts…" : (hasConflicts ? "\(model.conflicts.count) conflicting shortcut(s)" : "No conflicts detected"),
-        message: hasConflicts && !checking
-            ? (model.conflicts.allSatisfy(\.advisory)
-                ? "App-level collisions found. Bindings stay active; consider the suggested remaps."
-                : "Conflicting shortcuts are paused until resolved.")
-            : nil,
-        rows: rows,
-        actions: actions,
-        footer: footer.isEmpty ? nil : footer.joined(separator: " · "),
-        extra: extra,
+        severity: count > 0 ? .warning : .success,
+        title: count > 0 ? "\(count) shortcut registration conflict\(count == 1 ? "" : "s")" : "Shortcut conflicts resolved",
+        message: count > 0
+            ? "Some shortcuts could not be registered. Review the affected bindings in Settings."
+            : "No registration conflicts remain in the active mode.",
+        actions: [
+            TrayNoticeAction(id: "settings", label: "Review in Settings…") {
+                SettingsWindow.shared.show(section: .shortcuts)
+            },
+        ],
+        lifetime: 8,
     )
 }

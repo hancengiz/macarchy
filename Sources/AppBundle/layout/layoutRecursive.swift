@@ -2,13 +2,13 @@ import AppKit
 
 extension Workspace {
     @MainActor
-    func layoutWorkspace(hideCorner: OptimalHideCorner = .bottomRightCorner) async throws {
+    func layoutWorkspace(displayFrames: [CGRect]? = nil) async throws {
         if isEffectivelyEmpty { return }
         let rect = workspaceMonitor.visibleRectPaddedByOuterGaps
         // If monitors are aligned vertically and the monitor below has smaller width, then macOS may not allow the
         // window on the upper monitor to take full width. rect.height - 1 resolves this problem
         // But I also faced this problem in monitors horizontal configuration. ¯\_(ツ)_/¯
-        try await layoutRecursive(rect.topLeftCorner, width: rect.width, height: rect.height - 1, virtual: rect, LayoutContext(self, hideCorner))
+        try await layoutRecursive(rect.topLeftCorner, width: rect.width, height: rect.height - 1, virtual: rect, LayoutContext(self, displayFrames))
     }
 }
 
@@ -36,12 +36,7 @@ extension TreeNode {
                     lastAppliedLayoutPhysicalRect = nil
                     lastAppliedLayoutVirtualRect = nil
                     if let window = window as? MacWindow {
-                        // Native-fullscreen windows live on their own Space; AX-moving
-                        // them tears the fullscreen animation and drags video across
-                        // monitors. Leave them: their Space is only shown when focused.
-                        if try await !window.isMacosFullscreen(.cancellable) {
-                            try await window.hideInCorner(context.hideCorner)
-                        }
+                        try await window.hideInCorner(context.displayFrames)
                     }
                     return
                 }
@@ -78,44 +73,37 @@ extension TreeNode {
 private struct LayoutContext {
     let workspace: Workspace
     let resolvedGaps: ResolvedGaps
-    let hideCorner: OptimalHideCorner
+    let displayFrames: [CGRect]
     var scrollingVisible = true
 
     @MainActor
-    init(_ workspace: Workspace, _ hideCorner: OptimalHideCorner) {
+    init(_ workspace: Workspace, _ displayFrames: [CGRect]?) {
         self.workspace = workspace
         self.resolvedGaps = ResolvedGaps(gaps: config.gaps, monitor: workspace.workspaceMonitor)
-        self.hideCorner = hideCorner
+        self.displayFrames = displayFrames ?? monitorInfos.map { $0.rect.cgRect }
     }
 }
 
 extension Window {
     @MainActor
     fileprivate func layoutFloatingWindow(_ context: LayoutContext) async throws {
+        guard windowId != currentlyManipulatedWithMouseWindowId,
+              try await !isMacosFullscreen(.cancellable),
+              let windowRect = try await getAxRect(.cancellable) else { return }
         let workspace = context.workspace
-        let windowRect = try await getAxRect(.cancellable) // Probably not idempotent
-        let currentMonitor = windowRect?.center.monitorApproximation
-        if let currentMonitor, let windowRect, workspace != currentMonitor.activeWorkspace {
-            let windowTopLeftCorner = windowRect.topLeftCorner
-            let xProportion = (windowTopLeftCorner.x - currentMonitor.visibleRect.topLeftX) / currentMonitor.visibleRect.width
-            let yProportion = (windowTopLeftCorner.y - currentMonitor.visibleRect.topLeftY) / currentMonitor.visibleRect.height
-
-            let workspaceRect = workspace.workspaceMonitor.visibleRect
-            // Fit oversized floating windows: a window larger than the destination
-            // monitor would be unreachably clipped (typical when moving from a big
-            // external display to a smaller one and back).
-            let windowWidth = min(windowRect.width, workspaceRect.width)
-            let windowHeight = min(windowRect.height, workspaceRect.height)
-            let size = windowWidth == windowRect.width && windowHeight == windowRect.height
-                ? nil
-                : CGSize(width: windowWidth, height: windowHeight)
-            var newX = workspaceRect.topLeftX + xProportion * workspaceRect.width
-            var newY = workspaceRect.topLeftY + yProportion * workspaceRect.height
-            newX = newX.coerce(in: workspaceRect.minX ... max(workspaceRect.minX, workspaceRect.maxX - windowWidth))
-            newY = newY.coerce(in: workspaceRect.minY ... max(workspaceRect.minY, workspaceRect.maxY - windowHeight))
-
-            setAxFrame(CGPoint(x: newX, y: newY), size)
+        let currentMonitor = windowRect.center.monitorApproximation
+        let bounds = workspace.workspaceMonitor.visibleRect
+        var target = windowRect
+        if workspace != currentMonitor.activeWorkspace {
+            let source = currentMonitor.visibleRect
+            target.topLeftX = bounds.minX + (windowRect.minX - source.minX) / source.width * bounds.width
+            target.topLeftY = bounds.minY + (windowRect.minY - source.minY) / source.height * bounds.height
         }
+        target = target.fitted(to: bounds)
+        if target.topLeftCorner != windowRect.topLeftCorner || target.size != windowRect.size {
+            setAxFrame(target.topLeftCorner, target.size)
+        }
+        lastFloatingSize = target.size
         if isFullscreen {
             layoutFullscreen(context)
             isFullscreen = false
@@ -136,11 +124,10 @@ extension TilingContainer {
     fileprivate func layoutScrolling(_ point: CGPoint, width: CGFloat, height: CGFloat, virtual: Rect, _ context: LayoutContext) async throws {
         let extent = orientation == .h ? width : height
         let gap = CGFloat(context.resolvedGaps.inner.get(orientation))
-        let defaultSize = extent * CGFloat(config.scrollingColumnWidth) / 100
         let enabled = TrayMenuModel.shared.isEnabled
         let disabledSize = max(1, (extent - gap * CGFloat(max(0, children.count - 1))) / CGFloat(max(1, children.count)))
         let viewport = ScrollingViewport(
-            sizes: children.map { enabled ? ($0.scrollingSize ?? defaultSize) : disabledSize },
+            sizes: children.map { enabled ? ($0.scrollingSize ?? preferredScrollingSize(for: $0, extent: extent)) : disabledSize },
             extent: extent,
             gap: gap,
             focusedIndex: mostRecentChild?.ownIndex ?? 0,

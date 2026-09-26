@@ -148,6 +148,7 @@ private let configParser: [String: any ParserProtocol<Config>] = [
     "automatically-unhide-macos-hidden-apps": Parser(\.automaticallyUnhideMacosHiddenApps, parseBool),
     "accordion-padding": Parser(\.accordionPadding, parseInt),
     "scrolling-column-width": Parser(\.scrollingColumnWidth, parseScrollingColumnWidth),
+    "app-window-widths": Parser(\.appWindowWidths, parseAppWindowWidths),
     "mouse-modifier": Parser(\.mouseModifier, parseMouseModifier),
     "adopt-native-window-resize": Parser(\.adoptNativeWindowResize, parseBool),
     "enable-mouse-edge-focus": Parser(\.enableMouseEdgeFocus, parseBool),
@@ -339,6 +340,28 @@ func parseInt(_ raw: OrderedJson, _ backtrace: ConfigBacktrace) -> ResOrConfigPa
 private func parseScrollingColumnWidth(_ raw: OrderedJson, _ backtrace: ConfigBacktrace) -> ResOrConfigParseDiagnostic<Int> {
     parseInt(raw, backtrace)
         .filter(.init(backtrace, "scrolling-column-width must be an integer percentage in [10, 100]")) { (10 ... 100).contains($0) }
+}
+
+private func parseAppWindowWidths(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> [String: Int] {
+    guard let table = raw.asDictOrNil else {
+        c.errors.append(expectedActualTypeDiagnostic(expected: .table, actual: raw.tomlType, backtrace))
+        return [:]
+    }
+    var widths: [String: Int] = [:]
+    for (bundleId, value) in table {
+        let location = backtrace + .key(bundleId)
+        guard !bundleId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            c.errors.append(.init(location, "App bundle ID must not be empty"))
+            continue
+        }
+        if let width = parseInt(value, location)
+            .filter(.init(location, "App window width must be an integer percentage in [1, 100]"), { (1 ... 100).contains($0) })
+            .getOrNil(appendErrorTo: &c.errors)
+        {
+            widths[bundleId] = width
+        }
+    }
+    return widths
 }
 
 private func parseMouseModifier(_ raw: OrderedJson, _ backtrace: ConfigBacktrace) -> ResOrConfigParseDiagnostic<MouseModifier> {

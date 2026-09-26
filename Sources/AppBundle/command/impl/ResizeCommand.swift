@@ -40,7 +40,7 @@ struct ResizeCommand: Command {
         guard let node else { return .fail }
         if parent.layout == .scrolling {
             guard let extent = parent.lastAppliedLayoutPhysicalRect?.getDimension(orientation) else { return .fail }
-            let current = node.scrollingSize ?? extent * CGFloat(config.scrollingColumnWidth) / 100
+            let current = node.scrollingSize ?? preferredScrollingSize(for: node, extent: extent)
             let size: CGFloat = switch args.units.val {
                 case .set(let unit): CGFloat(unit)
                 case .add(let unit): current + CGFloat(unit)
@@ -78,8 +78,8 @@ struct ResizeCommand: Command {
               let monitorRect = window.nodeMonitor?.visibleRect
         else { return .fail }
         let horizontal = switch args.dimension.val {
-            case .height: false
-            default: true // width, smart, smartOpposite: no orientation context when floating
+            case .height, .smartOpposite: false
+            case .width, .smart: true
         }
         let maxDim = horizontal ? monitorRect.width : monitorRect.height
         let current = horizontal ? windowRect.width : windowRect.height
@@ -91,8 +91,8 @@ struct ResizeCommand: Command {
         let newSize = size.coerce(in: min(100, maxDim) ... maxDim)
         var newX = windowRect.topLeftX
         var newY = windowRect.topLeftY
-        let newWidth = horizontal ? newSize : windowRect.width
-        let newHeight = horizontal ? windowRect.height : newSize
+        let newWidth = min(horizontal ? newSize : windowRect.width, monitorRect.width)
+        let newHeight = min(horizontal ? windowRect.height : newSize, monitorRect.height)
         if horizontal {
             newX = windowRect.topLeftX + windowRect.width / 2 - newSize / 2
         } else {
@@ -101,6 +101,7 @@ struct ResizeCommand: Command {
         newX = newX.coerce(in: monitorRect.minX ... max(monitorRect.minX, monitorRect.maxX - newWidth))
         newY = newY.coerce(in: monitorRect.minY ... max(monitorRect.minY, monitorRect.maxY - newHeight))
         window.setAxFrame(CGPoint(x: newX, y: newY), CGSize(width: newWidth, height: newHeight))
+        window.lastFloatingSize = CGSize(width: newWidth, height: newHeight)
         return .succ
     }
 }

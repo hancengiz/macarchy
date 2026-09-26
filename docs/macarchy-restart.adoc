@@ -1,0 +1,36 @@
+= macarchy-restart(1)
+include::util/man-attributes.adoc[]
+:manname: macarchy-restart
+// tag::purpose[]
+:manpurpose: Restart Macarchy without rearranging existing windows
+// end::purpose[]
+
+== Synopsis
+[verse]
+// tag::synopsis[]
+macarchy restart [-h|--help]
+// end::synopsis[]
+
+== Description
+// tag::body[]
+Saves the current session durably and launches a fresh Macarchy process without
+running the normal Quit/unhide operation. Tray *Restart* performs the same operation.
+Existing applications are not restarted. The command response is sent before
+handoff, and the replacement waits for the old process to exit. Arguments and
+environment are inherited. A fresh process avoids macOS detaching the menu-bar
+item after an in-place executable replacement.
+
+Sessions are stored in `~/Library/Application Support/macarchy/session.json`.
+Startup restores workspace trees, window order, widths, viewport offsets, display
+assignments, and focus for live windows only. Matching uses exact process/window
+identity, or an unambiguous bundle-ID/title match across relaunch. Closed apps
+are not launched; ambiguous matches are not assigned to arbitrary windows.
+Displays are matched by stable UUID. Disconnected displays fall back to the
+first monitor.
+
+`SIGUSR1` requests the same layout-preserving restart. Use the command when possible so save failures are reported to the caller.
+
+== Options
+-h, --help:: Print help.
+// end::body[]
+include::util/man-footer.adoc[]

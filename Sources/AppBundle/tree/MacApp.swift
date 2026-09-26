@@ -158,7 +158,10 @@ final class MacApp: AbstractApp {
 
     func setAxFrame(_ windowId: UInt32, _ topLeft: CGPoint?, _ size: CGSize?) {
         setFrameJobs.removeValue(forKey: windowId)?.cancel()
-        setFrameJobs[windowId] = withWindowAsync(windowId, .cancellable) { [axApp] window, job in
+        setFrameJobs[windowId] = withWindowAsync(windowId, .cancellable) { [axApp, windows] window, job in
+            // Record the result, not the request: apps can constrain AX sizes.
+            // Even a cancelled multi-step write may have emitted resize events.
+            defer { windows.threadGuarded[windowId]?.lastAppliedSize = window.get(Ax.sizeAttr) }
             try disableAnimations(app: axApp.threadGuarded, job) {
                 try setFrame(window, topLeft, size, job)
             }
@@ -168,12 +171,14 @@ final class MacApp: AbstractApp {
     func setAxFrameForTermination(_ windowId: UInt32, _ topLeft: CGPoint?, _ size: CGSize?) {
         setFrameJobs.removeValue(forKey: windowId)?.cancel()
         let semaphore = DispatchSemaphore(value: 0)
-        let job = withWindowAsync(windowId, .nonCancellable) { [axApp] window, job in
+        let job = thread?.runInLoopAsync(job: RunLoopJob(.nonCancellable)) { [axApp, windows] job in
+            defer { semaphore.signal() }
+            guard let window = windows.threadGuarded[windowId]?.ax,
+                  window.get(Ax.isFullscreenAttr) != true else { return }
             try? disableAnimations(app: axApp.threadGuarded, job) {
                 try setFrame(window, topLeft, size, job)
             }
-            semaphore.signal()
-        }
+        } ?? .cancelled
         switch job.isCancelled {
             case true: return
             case false: semaphore.wait()
@@ -192,15 +197,25 @@ final class MacApp: AbstractApp {
         }
     }
 
-    func getAxRectForTermination(_ windowId: UInt32) -> Rect? {
-        let future = CompletableFuture<Rect?>()
-        let job = withWindowAsync(windowId, .nonCancellable) { window, job in
-            future.complete(try AppBundle.getAxRect(window: window, job: job))
+    func getResizeObservation(_ windowId: UInt32, _ cm: CancellationMode) async throws -> (rect: Rect, appliedSize: CGSize?)? {
+        try await withWindow(windowId, cm) { [windows] window, job in
+            guard let rect = try AppBundle.getAxRect(window: window, job: job) else { return nil }
+            return (rect, windows.threadGuarded[windowId]?.lastAppliedSize)
         }
-        return switch job.isCancelled {
-            case true: nil
-            case false: future.blockingGet()
-        }
+    }
+
+
+    func getSessionInfoForTermination(_ windowId: UInt32) -> (title: String, rect: Rect?, fullscreen: Bool)? {
+        let future = CompletableFuture<(String, Rect?, Bool)?>()
+        let job = thread?.runInLoopAsync(job: RunLoopJob(.nonCancellable)) { [windows] job in
+            guard let window = windows.threadGuarded[windowId]?.ax else {
+                future.complete(nil)
+                return
+            }
+            let rect = try? AppBundle.getAxRect(window: window, job: job)
+            future.complete((window.get(Ax.titleAttr) ?? "", rect, window.get(Ax.isFullscreenAttr) != false))
+        } ?? .cancelled
+        return job.isCancelled ? nil : future.blockingGet()
     }
 
     func isWindowHeuristic(_ windowId: UInt32, _ windowLevel: MacOsWindowLevel?, _ cm: CancellationMode) async throws -> Bool {
@@ -371,6 +386,7 @@ final class MacApp: AbstractApp {
 private final class AxWindow {
     let windowId: UInt32
     let ax: AXUIElement
+    var lastAppliedSize: CGSize?
     // periphery:ignore
     private let axSubscriptions: [AxSubscription] // keep subscriptions in memory
 
@@ -418,6 +434,9 @@ private func getAxRect(window: AXUIElement, job: RunLoopJob) throws -> Rect? {
 }
 
 private func setFrame(_ window: AXUIElement, _ topLeft: CGPoint?, _ size: CGSize?, _ job: RunLoopJob) throws {
+    // Native fullscreen belongs to macOS Spaces, not the tiling layout. Check on
+    // the AX worker as well, since native state can change after model capture.
+    guard window.get(Ax.isFullscreenAttr) != true else { return }
     // Set size and then the position. The order is important
     if let size { window.set(Ax.sizeAttr, size) }
     try job.checkCancellation()

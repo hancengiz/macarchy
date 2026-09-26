@@ -25,7 +25,8 @@ public func getMessageWindow(messageModel: MessageModel) -> some Scene {
             }
         // .windowMinimizeBehavior(WindowInteractionBehavior.disabled) // SwiftUI way of hiding minimize button. Available only since macOS 15
     }
-    .windowResizability(.contentMinSize)
+    .windowResizability(.contentSize)
+    .defaultSize(width: 580, height: 380)
     //.windowLevel(.floating) //This might be the SwiftUI way of doing window level instead of the onAppear block above, but it's only available from macOS 15.0
 }
 
@@ -34,70 +35,26 @@ public let messageWindowId = "\(appName).messageView"
 struct MessageView: View {
     @StateObject private var model: MessageModel
     @Environment(\.dismiss) private var dismiss: DismissAction
-    @FocusState var focus: Bool
 
     init(model: MessageModel) {
         self._model = .init(wrappedValue: model)
     }
 
     public var body: some View {
-        VStack(alignment: .leading) {
-            HStack(alignment: .center, spacing: 14) {
-                Image(systemName: model.message?.type == .config ? "exclamationmark.triangle.fill" : "keyboard")
-                    .foregroundColor(model.message?.type == .config ? .yellow : Theme.accent)
-                    .font(.system(size: 26))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(model.message?.description ?? "")")
-                        .font(.system(size: 17, weight: .semibold))
-                    Text(model.message?.title == appName ? "Configuration diagnostics" : model.message?.title ?? "")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .padding([.top, .horizontal])
-            .padding(.bottom, 10)
-            if model.message?.type == .shortcuts {
-                ScrollView {
-                    Text(model.message?.body ?? "")
-                        .font(.system(size: 12).monospaced())
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                }
-                .frame(height: 420)
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading) {
-                        HStack {
-                            let cancelOnEnterBinding: Binding<String> = Binding(
-                                get: { model.message?.body ?? "" },
-                                set: { newText in
-                                    if let prev = model.message?.body.count(where: \.isNewline), newText.count(where: \.isNewline) > prev {
-                                        model.message = nil
-                                    }
-                                },
-                            )
-                            TextEditor(text: cancelOnEnterBinding)
-                                .font(.system(size: 12).monospaced())
-                                .focused($focus)
-                            //  .onKeyPress(.return) { return .handled } // enter handling alternative. Only available since macOS 14
-                            Spacer()
-                        }
-                        Spacer()
-                    }
-                    .padding()
-                }
-                .background(Color(.controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .padding(.horizontal)
+        VStack(alignment: .leading, spacing: 12) {
+            Text(model.message?.description ?? "").font(.headline)
+            ScrollView {
+                Text(model.message?.body ?? "")
+                    .font(.system(.body, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack {
                 Spacer()
                 if let type = model.message?.type {
                     switch type {
                         case .config:
-                            reloadConfigButton(showShortcutGroup: true, warningsAsErrors: model.message?.containsWarnings == true)
-                            openConfigButton(showShortcutGroup: true)
+                            reloadConfigButton(warningsAsErrors: model.message?.containsWarnings == true)
+                            openConfigButton()
                         case .shortcuts:
                             Button("Refresh") {
                                 model.message = Message(type: .shortcuts, title: "Current Shortcuts", description: "Current Shortcuts",
@@ -109,10 +66,11 @@ struct MessageView: View {
                 let closeButton = Button("Close") { model.message = nil }.keyboardShortcut(.defaultAction)
                 closeButton
             }
-            .padding()
+            .padding(.top, 4)
         }
+        .padding(16)
         .textSelection(.enabled)
-        .frame(minWidth: 480, maxWidth: 960, minHeight: 200)
+        .frame(minWidth: 480, idealWidth: 580, maxWidth: 720, minHeight: 280, idealHeight: 380, maxHeight: 640)
         .onChange(of: model.message) { message in
             if message == nil {
                 self.dismiss()
@@ -126,8 +84,6 @@ struct MessageView: View {
             // A window restored without a message must never linger as an empty shell.
             if model.message == nil {
                 dismiss()
-            } else {
-                focus = true
             }
         }
     }

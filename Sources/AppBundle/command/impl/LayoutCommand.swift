@@ -120,13 +120,12 @@ struct LayoutCommand: Command {
     guard let rect = parent.lastAppliedLayoutPhysicalRect else { return }
     let extent = parent.orientation == .h ? rect.width : rect.height
     guard extent > 0, !parent.children.isEmpty else { return }
-    let defaultSize = extent * CGFloat(config.scrollingColumnWidth) / 100
     switch (oldLayout, targetLayout) {
         case (.scrolling, .tiles):
-            let total = CGFloat(parent.children.sumOfDouble { Double($0.scrollingSize ?? defaultSize) } ?? 0)
+            let total = CGFloat(parent.children.sumOfDouble { Double($0.scrollingSize ?? preferredScrollingSize(for: $0, extent: extent)) } ?? 0)
             guard total > 0 else { return }
             for child in parent.children {
-                child.setWeight(parent.orientation, (child.scrollingSize ?? defaultSize) / total * extent)
+                child.setWeight(parent.orientation, (child.scrollingSize ?? preferredScrollingSize(for: child, extent: extent)) / total * extent)
             }
         case (.tiles, .scrolling):
             let total = CGFloat(parent.children.sumOfDouble { Double($0.getWeight(parent.orientation)) } ?? 0)

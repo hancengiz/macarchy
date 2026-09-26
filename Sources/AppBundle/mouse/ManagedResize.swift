@@ -73,12 +73,20 @@ struct ManagedResize {
 @MainActor
 func adoptNativeWindowResize(_ window: Window) async throws -> Bool {
     guard config.adoptNativeWindowResize, !window.isFullscreen, !window.isOutsideScrollingViewport,
-          window.parent is TilingContainer, let expected = window.lastAppliedLayoutPhysicalRect,
-          let actual = try await window.getAxRect(.cancellable),
-          abs(actual.width - expected.width) > 2 || abs(actual.height - expected.height) > 2 else { return false }
+          window.parent is TilingContainer, let expected = window.lastAppliedLayoutPhysicalRect else { return false }
+    let observation: (rect: Rect, appliedSize: CGSize?)?
+    if let macWindow = window as? MacWindow {
+        observation = try await macWindow.macApp.getResizeObservation(window.windowId, .cancellable)
+    } else {
+        observation = try await window.getAxRect(.cancellable).map { ($0, nil) }
+    }
+    guard let observation,
+          let targetSize = nativeResizeTargetSize(expected: expected.size, actual: observation.rect.size, lastApplied: observation.appliedSize)
+    else { return false }
+    let actual = observation.rect
     let resize = ManagedResize(window: window, rect: expected,
                                fromLeft: abs(actual.minX - expected.minX) > 2,
                                fromTop: abs(actual.minY - expected.minY) > 2)
-    resize.apply(width: actual.width, height: actual.height)
+    resize.apply(width: targetSize.width, height: targetSize.height)
     return true
 }

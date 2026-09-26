@@ -54,12 +54,20 @@ Possible values:
 +
 If several `<target-layout>` are supplied, then the first one that doesn't describe the currently active layout is applied.
 
-`scrolling` keeps each column at `scrolling-column-width` percent of the workspace
-(49 by default; integer range 10 through 100). `resize width` changes only the
-current column; `balance-sizes` restores the configured widths. Columns can extend
-past a display edge without being shrunk. Fully offscreen columns use Macarchy's
-corner hiding. Adjacent displays can show overflow because macOS does not provide
-per-workspace clipping. Scrolling is immediate, without compositor animation.
+`scrolling` uses each app's `[app-window-widths]` preference, falling back to
+`scrolling-column-width` percent of the container (49 by default; integer range
+10 through 100). App preferences use quoted bundle IDs and integer percentages
+from 1 through 100. Defaults apply during layout unless the window has an explicit
+manual width. `resize width` changes the current column; `balance-sizes` clears
+manual overrides in the workspace and restores app defaults or the fallback.
+See xref:commands.adoc#save-app-width[save-app-width] to remember a window's width
+as an app default. These preferences do not automatically size floating windows.
+
+Partially visible columns retain their full width and true desktop-wide positions.
+Adjacent displays may intentionally show overflow: per-monitor clipping and
+compositor animation are not implemented. Fully hidden parking minimizes rectangle
+intersection across all displays and never moves native-fullscreen windows.
+Applications may enforce a larger minimum size than the requested column width.
 
 // =========================================================== Examples
 include::./util/conditional-examples-header.adoc[]

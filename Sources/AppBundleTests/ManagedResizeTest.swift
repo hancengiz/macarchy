@@ -53,6 +53,21 @@ final class ManagedResizeTest: XCTestCase {
         XCTAssertNil(second.scrollingSize)
     }
 
+    func testLayoutConstraintFeedbackDoesNotResizeColumn() {
+        let requested = CGSize(width: 1531, height: 773)
+        let constrained = CGSize(width: 1131, height: 800)
+        XCTAssertNil(nativeResizeTargetSize(expected: requested, actual: constrained, lastApplied: constrained))
+    }
+
+    func testNativeResizeFollowsUserSizeWithoutAdoptingOtherAxisConstraint() {
+        let target = nativeResizeTargetSize(
+            expected: CGSize(width: 100, height: 773),
+            actual: CGSize(width: 260, height: 800),
+            lastApplied: CGSize(width: 200, height: 800),
+        )
+        XCTAssertEqual(target, CGSize(width: 260, height: 773))
+    }
+
     func testCornerResizeAnchorsOppositeCornerAndClamps() {
         let window = TestWindow.new(id: 1, parent: focus.workspace.rootTilingContainer)
         let rect = Rect(topLeftX: 20, topLeftY: 40, width: 500, height: 400)

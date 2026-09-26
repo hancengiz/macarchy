@@ -8,36 +8,52 @@ let signposter = OSSignposter(subsystem: appId, category: .pointsOfInterest)
 let myPid = NSRunningApplication.current.processIdentifier
 let lockScreenAppBundleId = "com.apple.loginwindow"
 
-func interceptTermination(_ _signal: Int32) {
-    signal(_signal, { (signal: Int32) in
-        check(Thread.current.isMainThread)
-        Task.startUnstructured { @MainActor in
-            terminationHandler?.beforeTermination()
-            exit(signal)
-        }
-    } as sig_t)
+@MainActor private var applicationSignalSources: [DispatchSourceSignal] = []
+
+@MainActor
+private func interceptSignal(_ value: Int32, handler: @escaping @MainActor @Sendable () async -> Void) {
+    // A C signal handler may not allocate, touch AppKit, or create a Swift Task.
+    // Dispatch safely delivers the ignored signal on a regular queue instead.
+    unsafe signal(value, SIG_IGN)
+    let source = DispatchSource.makeSignalSource(signal: value, queue: .main)
+    source.setEventHandler { Task { @MainActor in await handler() } }
+    applicationSignalSources.append(source)
+    source.resume()
 }
 
 @MainActor
 func initTerminationHandler() {
     unsafe _terminationHandler = AppServerTerminationHandler()
+    for value in [SIGTERM, SIGINT] {
+        interceptSignal(value) {
+            terminationHandler?.beforeTermination()
+            exit(128 + value)
+        }
+    }
+    interceptSignal(SIGUSR1) {
+        do { try await restartMacarchy() }
+        catch { reportSessionFailure("Could not restart Macarchy", error: error) }
+    }
 }
 
 private struct AppServerTerminationHandler: TerminationHandler {
     @MainActor
     func beforeTermination() {
-        // Make all windows fullscreen before Quit
-        for window in MacWindow.allWindowsMap.values {
-            // makeAllWindowsVisibleAndRestoreSize may be invoked when something went wrong (e.g. some windows are unbound)
-            // that's why it's not allowed to use `.parent` call in here
-            let monitor = window.macApp.getAxRectForTermination(window.windowId)?.center.monitorApproximation ?? mainMonitorInfo
-            let monitorVisibleRect = monitor.visibleRect
-            let windowSize = window.lastFloatingSize ?? CGSize(width: monitorVisibleRect.width, height: monitorVisibleRect.height)
-            let point = CGPoint(
-                x: (monitorVisibleRect.width - windowSize.width) / 2,
-                y: (monitorVisibleRect.height - windowSize.height) / 2,
+        SessionState.shared.saveBeforeTermination()
+        // A normal quit only exposes windows Macarchy actually parked. Visible
+        // windows retain their size/position, and native fullscreen is untouched.
+        for window in MacWindow.allWindowsMap.values where window.isHiddenInCorner {
+            guard let info = window.macApp.getSessionInfoForTermination(window.windowId), !info.fullscreen else { continue }
+            let monitor = window.nodeWorkspace?.workspaceMonitor ?? info.rect?.center.monitorApproximation ?? mainMonitorInfo
+            let frame = window.isFloating
+                ? window.sessionFloatingRect(currentRect: info.rect)
+                : window.lastAppliedLayoutPhysicalRect ?? info.rect
+            let fitted = SessionFrame(frame ?? monitor.visibleRect).fitted(to: SessionFrame(monitor.visibleRect))
+            window.macApp.setAxFrameForTermination(
+                window.windowId,
+                CGPoint(x: fitted.x, y: fitted.y),
+                CGSize(width: fitted.width, height: fitted.height),
             )
-            window.macApp.setAxFrameForTermination(window.windowId, point, windowSize)
         }
         if isDebug {
             let semaphore = DispatchSemaphore(value: 0)

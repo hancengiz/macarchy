@@ -6,48 +6,47 @@ on:
     tags: [ "v*" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: build-release-app
     runs-on: macos-15
+    env:
+      XCODE_26_DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run tests
-        run: swift test
-
-      - name: Build release app
+      - name: Select supported Swift toolchain
         run: |
-          swift build -c release
-          BIN="$(swift build -c release --show-bin-path)"
-          DEST="macarchy.app/Contents"
-          mkdir -p "$DEST/MacOS" "$DEST/Resources" "$DEST/Helpers"
-          # Default macOS volumes are case-insensitive: the app and CLI binaries collide in one dir.
-          cp "$BIN/MacarchyApp" "$DEST/MacOS/macarchy"
-          cp "$BIN/macarchy" "$DEST/Helpers/macarchy"
-          cp resources/Assets.xcassets/AppIcon.appiconset/icon.png "$DEST/Resources/AppIcon.png"
-          for bundle in "$BIN"/*.bundle; do
-            [ -e "$bundle" ] && cp -R "$bundle" "$DEST/Resources/"
-          done
-          cat > "$DEST/Info.plist" <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>CFBundleName</key><string>macarchy</string>
-            <key>CFBundleIconFile</key><string>AppIcon</string>
-            <key>CFBundlePackageType</key><string>APPL</string>
-            <key>CFBundleShortVersionString</key><string>0.22.0</string>
-            <key>CFBundleVersion</key><string>1</string>
-            <key>LSMinimumSystemVersion</key><string>13.0</string>
-            <key>LSUIElement</key><true/>
-            <key>NSAppleEventsUsageDescription</key>
-            <string>Launch applications from your configured shortcuts.</string>
-          </dict>
-          </plist>
-          PLIST
-          codesign --force --deep --sign - macarchy.app
-          ditto -c -k --keepParent macarchy.app macarchy.app.zip
+          bash .github/gh-actions-runner-xcode-select.sh
+          swift --version
+
+      - name: Install build prerequisites
+        run: brew install bash
+
+      - name: Build versioned release app
+        run: |
+          args=(--build-only)
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            args+=(--build-version "${GITHUB_REF_NAME#v}")
+          fi
+          python3 macarchy/install.py "${args[@]}"
+
+      - name: Run tests
+        run: |
+          swift test
+          python3 -m unittest discover -s macarchy -p 'test_*.py'
+
+      - name: Smoke packaged executables
+        run: |
+          .local/macarchy.app/Contents/MacOS/macarchy --version
+          .local/macarchy.app/Contents/Helpers/macarchy --help
+          codesign --verify --deep --strict .local/macarchy.app
+
+      - name: Archive release app
+        run: ditto -c -k --keepParent .local/macarchy.app macarchy.app.zip
 
       - name: Upload app artifact
         uses: actions/upload-artifact@v4
@@ -60,3 +59,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: macarchy.app.zip
+          name: macarchy ${{ github.ref_name }}
+          body: |
+            Apple Silicon (arm64), macOS 13 or newer.
+
+            Download and extract `macarchy.app.zip`, then grant Macarchy Accessibility access.
+            GitHub Actions builds are ad-hoc signed and are not notarized.

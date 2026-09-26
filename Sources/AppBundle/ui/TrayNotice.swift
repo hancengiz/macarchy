@@ -69,8 +69,6 @@ struct TrayNotice: Equatable {
     var footer: String? = nil
     /// Auto-dismiss delay in seconds. `nil` keeps the notice until dismissed manually.
     var lifetime: TimeInterval? = nil
-    /// Optional custom section (e.g. a picker menu). Not part of equality.
-    var extra: AnyView? = nil
 
     init(
         id: String,
@@ -81,7 +79,6 @@ struct TrayNotice: Equatable {
         actions: [TrayNoticeAction] = [],
         footer: String? = nil,
         lifetime: TimeInterval? = nil,
-        extra: AnyView? = nil,
     ) {
         self.id = id
         self.severity = severity
@@ -91,7 +88,6 @@ struct TrayNotice: Equatable {
         self.actions = actions
         self.footer = footer
         self.lifetime = lifetime
-        self.extra = extra
     }
 
     static func == (lhs: TrayNotice, rhs: TrayNotice) -> Bool {
@@ -105,13 +101,13 @@ struct TrayNotice: Equatable {
 func noticePanelFrame(anchor: CGRect?, visibleFrame: CGRect, contentSize: CGSize) -> CGRect {
     let margin: CGFloat = 8
     let gap: CGFloat = 7
-    let maxHeight = min(visibleFrame.height * 0.6, 320)
-    let width = min(contentSize.width, visibleFrame.width - margin * 2).rounded()
-    let height = min(contentSize.height, maxHeight).rounded()
+    let maxHeight = max(1, min(visibleFrame.height - margin * 2 - gap, 320))
+    let width = max(1, min(contentSize.width, 420, visibleFrame.width - margin * 2)).rounded()
+    let height = max(1, min(contentSize.height, maxHeight)).rounded()
     let centerX = anchor.map { $0.midX } ?? visibleFrame.midX
     let x = min(max(centerX - width / 2, visibleFrame.minX + margin), visibleFrame.maxX - margin - width)
     let top = min(anchor?.minY ?? visibleFrame.maxY, visibleFrame.maxY)
-    return CGRect(x: x, y: (top - gap - height).rounded(), width: width, height: height)
+    return CGRect(x: x, y: max(visibleFrame.minY + margin, top - gap - height).rounded(), width: width, height: height)
 }
 
 // MARK: Center
@@ -177,21 +173,24 @@ final class NoticeCenter: ObservableObject {
 // MARK: Panel
 
 @MainActor
-final class TrayNoticePanel: NSPanelHud {
+final class TrayNoticePanel: NSPanel {
     static let shared = TrayNoticePanel()
 
-    private var background: NSVisualEffectView?
+    private var contentHeight: CGFloat = 170
     private var hostingView: NSHostingView<NoticeView>?
     private var displayedNotice: TrayNotice?
     private var eventMonitors: [Any] = []
     private var screenParamsObserver: NSObjectProtocol?
 
-    override private init() {
-        super.init()
-        title = "Notification"
+    private init() {
+        super.init(contentRect: CGRect(x: 0, y: 0, width: 420, height: 170), styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel], backing: .buffered, defer: false)
+        title = "Macarchy"
         identifier = NSUserInterfaceItemIdentifier("macarchy.tray-notice")
-        isOpaque = false
-        setAccessibilityLabel("Desktop notification")
+        level = .floating
+        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        isReleasedWhenClosed = false
+        hidesOnDeactivate = false
+        setAccessibilityLabel("Macarchy notification")
         screenParamsObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil,
@@ -200,7 +199,7 @@ final class TrayNoticePanel: NSPanelHud {
             MainActor.assumeIsolated {
                 guard let self, let notice = self.displayedNotice, self.isVisible else { return }
                 self.updateContent(notice: notice)
-                self.applyFrame(anchor: trayStatusItemAnchor(), animated: false)
+                self.applyFrame(anchor: trayStatusItemAnchor())
             }
         }
     }
@@ -210,15 +209,15 @@ final class TrayNoticePanel: NSPanelHud {
 
     func present(notice: TrayNotice, anchor: CGRect?) {
         updateContent(notice: notice)
+        applyFrame(anchor: anchor)
         orderFrontRegardless()
-        applyFrame(anchor: anchor, animated: true)
         installEventMonitors()
     }
 
     func refresh(notice: TrayNotice) {
         guard isVisible else { return }
         updateContent(notice: notice)
-        applyFrame(anchor: trayStatusItemAnchor(), animated: false)
+        applyFrame(anchor: trayStatusItemAnchor())
     }
 
     func dismiss() {
@@ -228,51 +227,28 @@ final class TrayNoticePanel: NSPanelHud {
 
     private func updateContent(notice: TrayNotice) {
         displayedNotice = notice
-        if background == nil {
-            let background = Theme.panelBackground(material: .hudWindow)
-            contentView = background
-            self.background = background
-        }
-        // Keep one stable hosting view; swapping subviews mid-animation left the panel blank.
-        if let hosting = hostingView {
-            hosting.rootView = NoticeView(notice: notice)
+        contentHeight = notice.rows.isEmpty ? 170 : 300
+        if let hostingView {
+            hostingView.rootView = NoticeView(notice: notice)
         } else {
             let hosting = NSHostingView(rootView: NoticeView(notice: notice))
-            hosting.autoresizingMask = [.width, .height]
-            background?.addSubview(hosting)
+            hosting.sizingOptions = []
+            contentView = hosting
             hostingView = hosting
         }
-        let size = hostingView?.fittingSize ?? .zero
-        hostingView?.setFrameSize(size)
-        background?.setFrameSize(size)
     }
 
-    private func applyFrame(anchor: CGRect?, animated: Bool) {
-        guard let hostingView else { return }
+    private func applyFrame(anchor: CGRect?) {
         let frame = noticePanelFrame(
             anchor: anchor,
             visibleFrame: targetScreen(anchor: anchor).visibleFrame,
-            contentSize: hostingView.frame.size,
+            contentSize: CGSize(width: 420, height: contentHeight),
         )
-        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        if !animated || reduceMotion {
-            alphaValue = 1
-            setFrame(frame, display: true)
-            return
-        }
-        alphaValue = 0
-        // Start slightly behind the menu bar so the notice slides down from the top edge.
-        setFrame(frame.offsetBy(dx: 0, dy: 14), display: true)
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.18
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            self.animator().setFrame(frame, display: true)
-            self.animator().alphaValue = 1
-        } completionHandler: {
-            // Guarantee the final state even if the animation is interrupted.
-            self.alphaValue = 1
-            self.setFrame(frame, display: true)
-        }
+        setFrame(frame, display: true)
+    }
+
+    override func close() {
+        NoticeCenter.shared.dismiss()
     }
 
     private func targetScreen(anchor: CGRect?) -> NSScreen {
@@ -333,130 +309,44 @@ struct NoticeView: View {
     let notice: TrayNotice
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: notice.severity.systemImage)
-                    .foregroundStyle(notice.severity.tint)
-                    .font(.system(size: 13, weight: .semibold))
-                Text(notice.title)
-                    .font(.system(size: 13, weight: .semibold))
-                Spacer(minLength: 10)
-                Button {
-                    NoticeCenter.shared.dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(3)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help("Dismiss")
-            }
-            if let message = notice.message {
-                Text(message)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-            }
-            if !notice.rows.isEmpty { rows }
-            if !notice.actions.isEmpty {
-                HStack(spacing: 8) {
-                    ForEach(notice.actions, id: \.id) { action in
-                        Button {
-                            action.handler?()
-                        } label: {
-                            Text(action.label).font(.system(size: 12, weight: .medium))
+        VStack(alignment: .leading, spacing: 10) {
+            Label(notice.title, systemImage: notice.severity.systemImage)
+                .font(.headline)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let message = notice.message {
+                        Text(message).foregroundStyle(.secondary)
+                    }
+                    ForEach(Array(notice.rows.enumerated()), id: \.offset) { _, row in
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(row.title).fontWeight(.medium)
+                                if let detail = row.detail { Text(detail).foregroundStyle(.secondary) }
+                            }
+                            Spacer(minLength: 8)
+                            if let action = row.action {
+                                Button(action.label) { action.handler?() }.help(action.tooltip)
+                            }
                         }
-                        .buttonStyle(CapsuleButtonStyle())
-                        .help(action.tooltip)
+                    }
+                    if let footer = notice.footer {
+                        Text(footer).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+            }
+            if !notice.actions.isEmpty {
+                HStack {
+                    ForEach(notice.actions, id: \.id) { action in
+                        Button(action.label) { action.handler?() }.help(action.tooltip)
                     }
                     Spacer(minLength: 0)
                 }
             }
-            if let extra = notice.extra {
-                extra
-            }
-            if let footer = notice.footer {
-                Text(footer)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
         }
         .padding(12)
-        .frame(maxWidth: 420, alignment: .leading)
-        .fixedSize(horizontal: false, vertical: true)
-    }
-
-    @ViewBuilder
-    private var rows: some View {
-        if notice.rows.count > 4 {
-            ScrollView { rowsList }.frame(maxHeight: 200)
-        } else {
-            rowsList
-        }
-    }
-
-    private var rowsList: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(notice.rows.enumerated()), id: \.offset) { _, row in
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(row.title).font(.system(size: 12, weight: .bold, design: .monospaced))
-                        if let detail = row.detail {
-                            Text(detail)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    Spacer(minLength: 8)
-                    if let action = row.action {
-                        Button {
-                            action.handler?()
-                        } label: {
-                            Text(action.label).font(.system(size: 11))
-                        }
-                        .help(action.tooltip)
-                    }
-                }
-            }
-        }
-    }
-}
-/// Omarchy-style pill button used by desktop notices.
-struct CapsuleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(Theme.accent)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
-            .background(
-                Capsule().fill(Theme.accent.opacity(configuration.isPressed ? 0.24 : 0.12)),
-            )
-            .overlay(
-                Capsule().strokeBorder(Theme.accent.opacity(0.35), lineWidth: Theme.hairlineWidth),
-            )
-    }
-}
-
-/// Compact picker for resolving "which app owns the shortcut" manually.
-struct RunningAppsMenu: View {
-    var body: some View {
-        Menu {
-            ForEach(
-                NSWorkspace.shared.runningApplications.filter { $0.activationPolicy == .regular },
-                id: \.processIdentifier,
-            ) { app in
-                Button(app.localizedName ?? "Application") {
-                    NoticeCenter.shared.dismiss()
-                    app.activate(options: .activateIgnoringOtherApps)
-                }
-            }
-        } label: {
-            Label("Open App…", systemImage: "arrow.up.forward.app")
-                .font(.system(size: 12))
-        }
-        .fixedSize()
-        .help("Activate a running application")
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
@@ -477,7 +367,16 @@ func postModifierMouseWarningNotice(warning: String) {
             },
             TrayNoticeAction(id: "retry", label: "Retry", tooltip: "Reload config to retry enabling gestures") {
                 Task { @MainActor in
-                    _ = await reloadConfig_nonCancellable(args: ReloadConfigCmdArgs(rawArgs: []))
+                    do {
+                        try await runLightSession(.menuBarButton, .forceRun) {
+                            let warnings = try await ConfigPersistence.reload(ConfigPersistence.activeURL())
+                            if warnings.isEmpty {
+                                NoticeCenter.shared.dismiss(id: modifierMouseNoticeId)
+                            } else {
+                                NoticeCenter.shared.post(TrayNotice(id: modifierMouseNoticeId, severity: .warning, title: "Configuration warnings", message: warnings))
+                            }
+                        }
+                    } catch { showSettingsError(error) }
                 }
             },
         ],

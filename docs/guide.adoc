@@ -14,16 +14,30 @@ You can skip parts that are obvious.
 === Building from sources (Preferred)
 
 Macarchy is installed with its Python installer, which builds the app from sources.
+Release builds work with Xcode Command Line Tools; full Xcode is needed only for
+XCTest. Install Python 3.11+ and Bash 5 (`brew install bash`); macOS 13+ is required.
 
 [source,bash]
 ----
-env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 macarchy/install.py --build
+python3 macarchy/install.py --build
 ----
 
-The installer builds `macarchy.app`, installs the profile to `~/.macarchy.toml`, and the helper files to `~/.config/macarchy/`.
-After installation, enable **macarchy** under System Settings -> Privacy & Security -> Accessibility.
+The installer builds and installs `~/Applications/macarchy.app` and helper files
+in `~/.config/macarchy/`. A fresh install creates `~/.macarchy.toml`; `--build`
+upgrades preserve existing configuration and Settings. Backups are stored under
+`~/.config/macarchy/backups/`.
+After installation, enable *macarchy* under System Settings -> Privacy & Security -> Accessibility.
 
-The installer also accepts `--leader` (use an F18 leader key for VoiceOver users) and `--restore` (roll back a previous installation).
+Upgrades invoke `macarchy restart` when the old version supports it. The first
+upgrade from a legacy version needs a one-time manual quit and launch of the
+new app; the installer does not signal a version without restart support.
+Signing prefers an available local Developer ID Application identity and falls
+back to ad-hoc signing. Ad-hoc rebuilds may require re-enabling Accessibility.
+
+`--profile-only` explicitly replaces the profile after backing it up.
+`--build-only` builds/signs without installing or changing the desktop.
+The installer also accepts `--leader` (select an F18 leader profile for VoiceOver
+users when installing a profile) and `--restore` (restore an installer backup).
 
 If you see this message
 
@@ -98,6 +112,75 @@ link:config-examples/default-config.toml[Download default-config.toml]
 ----
 include::config-examples/default-config.toml[]
 ----
+
+[#native-settings]
+=== Native Settings
+
+Open *Settings…* in the tray menu for the *General*, *App Widths*, and *Shortcuts*
+tabs. Edits are saved to the active configuration. General includes layout,
+gaps, mouse behavior, floating-window layering, and startup options.
+*Open Configuration…* exposes advanced options and bindings in your editor.
+
+`enable-mouse-edge-focus = false` is the default: merely reaching a screen edge
+does not change focus unless you enable it. Top and bottom *outer* gaps default
+to zero (`gaps.outer.top` and `gaps.outer.bottom`); inner gaps are independent.
+
+Shortcuts shows actual failed registrations, a Recheck action, current bindings,
+and advisory app-shortcut suggestions. Only actual registration failures trigger
+automatic compact notices. App suggestions remain Settings-only and leave
+bindings active. Checking is best-effort and covers the active mode; it cannot
+identify or remove every shortcut owned by another application.
+
+[#app-window-widths]
+=== Scrolling app widths
+
+Use quoted bundle IDs and integer percentages from 1 through 100:
+
+[source,toml]
+----
+[app-window-widths]
+'com.google.Chrome' = 75
+'com.microsoft.VSCode' = 75
+----
+
+Scrolling windows without a manual width use the app preference, falling back
+to `scrolling-column-width` (49 by default; range 10 through 100). Preferences
+are resolved during layout. Explicit manual window widths take precedence;
+`macarchy balance-sizes` clears manual overrides in the workspace and restores
+app defaults or the fallback.
+
+`macarchy save-app-width [--window-id <window-id>]` saves the selected window's
+width as its app default; without the flag it uses the focused window.
+The default profile binds it to `alt-ctrl-shift-w` (Option+Control+Shift+W).
+Saving clears only that target's manual scrolling override, not other windows'
+overrides. Settings -> App Widths also saves, edits, and removes defaults.
+Settings captures its target before activating, so its own window is never
+substituted for the app you were working in.
+
+Capture uses the logical requested scrolling width, allocated tiled width, or
+floating width relative to the display's visible width. App defaults affect
+scrolling, not automatic floating-window sizing. Applications may enforce
+minimum physical sizes larger than the requested width.
+
+Partially visible columns intentionally keep true desktop-wide positions;
+adjacent monitors may show their overflow. Per-monitor clipping and smooth
+compositor scrolling are not implemented.
+
+[#session-restore]
+=== Session restore and restart
+
+Macarchy stores workspace trees, window order, widths, viewport offsets,
+display assignments, and focus in
+`~/Library/Application Support/macarchy/session.json`.
+Startup restores live windows only; it does not launch closed applications.
+It matches exact process/window identity or an unambiguous bundle-ID/title pair
+across relaunch. Ambiguous matches are not assigned to arbitrary windows.
+Displays use stable monitor UUIDs; a missing display falls back to the first
+monitor.
+
+Use `macarchy restart` or tray *Restart* to save the session and launch a fresh
+Macarchy process without the normal *Quit* rearrangement. Existing applications
+are not restarted. See xref:commands.adoc#restart[restart].
 
 [#binding-modes]
 === Binding modes
@@ -426,7 +509,9 @@ Since Spaces are so hard to deal with, Macarchy reimplements Spaces and calls th
 The idea is that if the workspace isn’t active then all of its windows are placed outside the visible area of the screen, in the bottom right or left corner.
 Once you switch back to the workspace, (e.g. by the means of xref:commands.adoc#workspace[workspace] command, or `cmd + tab`) windows are placed back to the visible area of the screen.
 
-When you quit the Macarchy or when the Macarchy detects that it's about to crash, Macarchy will place all windows back to the visible area of the screen.
+Normal *Quit* (and handled crashes) returns hidden windows to the visible area.
+Use `macarchy restart` or tray *Restart* instead to save and relaunch without
+that rearrangement.
 
 Macarchy shows the name of currently active workspace in its tray icon (top right corner), to give users a visual feedback on what workspace is currently active.
 
@@ -443,10 +528,14 @@ If you want to minimize the visibility of hidden windows, it's recommended to pl
 
 === Proper monitor arrangement
 
-Since Macarchy needs a free space to hide windows in,
-please make sure to arrange monitors in a way where *every monitor has free space in the bottom right or left corner.* (`System Settings -> Displays -> Arrange...`)
+Fully hidden windows are parked to minimize their rectangle intersection across
+all displays. Native-fullscreen windows are never moved by parking.
+Free space beyond monitor corners still helps reduce residual visibility
+(`System Settings -> Displays -> Arrange...`).
 
-If you fail to arrange your monitors properly, you will see parts of hidden windows on other monitors.
+The examples below illustrate corner space, not a requirement for per-monitor
+clipping. Partially visible scrolling columns deliberately retain desktop-wide
+positions, so their overflow can appear on adjacent displays.
 
 .Bad monitor arrangement. Monitor 2 doesn't have free space in either of the bottom corners
 image::./assets/monitor-arrangement-1-bad.svg[,,align="center"]
