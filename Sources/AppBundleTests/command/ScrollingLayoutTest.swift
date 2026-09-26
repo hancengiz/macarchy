@@ -47,6 +47,17 @@ final class ScrollingLayoutTest: XCTestCase {
         let workspace = focus.workspace
         let root = workspace.rootTilingContainer
         let windows = (1 ... 3).map { TestWindow.new(id: UInt32($0), parent: root) }
+        // Offscreen columns do not receive a physical frame until brought into view.
+        func visibleWidths() async throws -> [CGFloat] {
+            var widths: [CGFloat] = []
+            for window in windows {
+                XCTAssertTrue(window.focusWindow())
+                try await workspace.layoutWorkspace()
+                let size = try await window.getAxSize(.nonCancellable)
+                widths.append(try XCTUnwrap(size).width)
+            }
+            return widths
+        }
         XCTAssertTrue(windows[0].focusWindow())
         root.layout = .scrolling
         try await workspace.layoutWorkspace()
@@ -54,14 +65,14 @@ final class ScrollingLayoutTest: XCTestCase {
         // Widen the focused column; the other two keep the default width
         _ = await parseCommand("resize width +200").cmdOrDie.run(.defaultEnv, .emptyStdin)
         try await workspace.layoutWorkspace()
-        let scrollingWidths = try windows.map { try XCTUnwrap($0.lastAppliedLayoutPhysicalRect).width }
+        let scrollingWidths = try await visibleWidths()
         XCTAssertEqual(scrollingWidths[1], scrollingWidths[2], accuracy: 0.1)
         XCTAssertGreaterThan(scrollingWidths[0], scrollingWidths[1])
 
         // Switching to tiles must carry the proportions over instead of equalizing
         _ = await parseCommand("layout --root h_tiles").cmdOrDie.run(.defaultEnv, .emptyStdin)
         try await workspace.layoutWorkspace()
-        let tilesWidths = try windows.map { try XCTUnwrap($0.lastAppliedLayoutPhysicalRect).width }
+        let tilesWidths = try await visibleWidths()
         XCTAssertEqual(tilesWidths[0] / tilesWidths[1], scrollingWidths[0] / scrollingWidths[1], accuracy: 0.02)
         XCTAssertEqual(tilesWidths[1], tilesWidths[2], accuracy: 0.1)
 
@@ -69,7 +80,7 @@ final class ScrollingLayoutTest: XCTestCase {
         // offscreen tape cannot map into an equal-extent tiles row and back)
         _ = await parseCommand("layout --root scrolling").cmdOrDie.run(.defaultEnv, .emptyStdin)
         try await workspace.layoutWorkspace()
-        let restoredWidths = try windows.map { try XCTUnwrap($0.lastAppliedLayoutPhysicalRect).width }
+        let restoredWidths = try await visibleWidths()
         XCTAssertEqual(restoredWidths[0] / restoredWidths[1], scrollingWidths[0] / scrollingWidths[1], accuracy: 0.02)
         XCTAssertEqual(restoredWidths[1], restoredWidths[2], accuracy: 0.1)
     }
