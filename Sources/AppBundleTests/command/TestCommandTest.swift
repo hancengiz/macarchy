@@ -165,7 +165,7 @@ final class TestCommandTest: XCTestCase {
 
         assertEquals(
             await parseCommand("test %{window-id} = 1").cmdOrDie.run(env, .emptyStdin),
-            CmdResult(stdout: [], stderr: ["Invalid <window-id> 9999 specified in AEROSPACE_WINDOW_ID env variable"], exitCode: Int32ExitCode(rawValue: 2)),
+            CmdResult(stdout: [], stderr: ["Invalid <window-id> 9999 specified in MACARCHY_WINDOW_ID env variable"], exitCode: Int32ExitCode(rawValue: 2)),
         )
     }
 

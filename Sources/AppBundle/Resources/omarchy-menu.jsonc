@@ -1,7 +1,7 @@
 // macarchy — shipped menu defaults (macOS port of Omarchy's omarchy-menu.jsonc).
 // Format: flat JSON object whose keys ARE dotted ids. Whole-line // comments and
 // trailing commas are allowed; inline trailing comments are NOT (same dialect as Omarchy).
-// Overlay your own entries in ~/.config/aerospace/omarchy/menu.jsonc (same format):
+// Overlay your own entries in ~/.config/macarchy/menu.jsonc (same format):
 //   same-id entries merge per field and keep their original position; new ids append.
 // icon = SF Symbol name. action = shell command, or one of the reserved in-app actions:
 //   macarchy:shortcuts, macarchy:conflicts, macarchy:reload, macarchy:hotkeys.
@@ -97,30 +97,30 @@
     "action": "\"$HOME/.config/macarchy/action\" activity",
   },
 
-  "aerospace": {
+  "macarchy": {
     "icon": "rectangle.split.2x1",
-    "label": "AeroSpace",
-    "title": "AeroSpace",
+    "label": "macarchy",
+    "title": "macarchy",
   },
-  "aerospace.shortcuts": {
+  "macarchy.shortcuts": {
     "icon": "keyboard",
     "label": "Current Shortcuts",
     "description": "hotkeys bindings help",
     "action": "macarchy:shortcuts",
   },
-  "aerospace.conflicts": {
+  "macarchy.conflicts": {
     "icon": "exclamationmark.triangle",
     "label": "Check Shortcut Conflicts",
     "description": "recheck hotkeys bindings",
     "action": "macarchy:conflicts",
   },
-  "aerospace.reload": {
+  "macarchy.reload": {
     "icon": "arrow.clockwise",
     "label": "Reload Config",
     "description": "config reload refresh",
     "action": "macarchy:reload",
   },
-  "aerospace.hotkeys": {
+  "macarchy.hotkeys": {
     "icon": "doc.text",
     "label": "Hotkey Reference File",
     "description": "hotkeys txt reference",
@@ -144,10 +144,10 @@
     "description": "documentation keybindings",
     "action": "open https://omarchy.org/manual/hotkeys/",
   },
-  "learn.aerospace": {
+  "learn.macarchy": {
     "icon": "rectangle.split.3x1",
-    "label": "AeroSpace Guide",
+    "label": "macarchy Guide",
     "description": "tiling documentation guide",
-    "action": "open https://nikitabobko.github.io/AeroSpace/guide",
+    "action": "open https://github.com/hancengiz/macarchy/blob/main/docs/guide.adoc",
   },
 }

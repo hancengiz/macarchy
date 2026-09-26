@@ -18,24 +18,8 @@ def run(*args, **kwargs):
     return subprocess.run(args, check=True, **kwargs)
 
 
-def profile(stock=False, leader=False):
+def profile(leader=False):
     text = (ROOT / "docs/config-examples/omarchy.toml").read_text()
-    if stock:
-        text = text.replace("start-at-login = true", "start-at-login = false")
-        text = text.replace("default-root-container-layout = 'scrolling'", "default-root-container-layout = 'tiles'")
-        text = text.replace("scrolling-column-width = 49\n", "")
-        text = text.replace("adopt-native-window-resize = true\n", "")
-        text = text.replace("enable-mouse-edge-focus = true\n", "")
-        text = text.replace("keep-floating-windows-on-top = true\n", "")
-        text = text.replace("warn-about-shortcut-conflicts = true\n", "")
-        text = text.replace("show-system-mode-overlay = true\n", "")
-        # Upstream AeroSpace cannot render the fork's launcher panel; keep stock honest.
-        text = text.replace("alt-space = 'mode macarchy-menu'\n", "")
-        text = text.replace(
-            "# All application shortcuts pass through; use the same chord to resume management.\n"
-            "[mode.macarchy-menu.binding]\nalt-space = 'mode main'\nesc = 'mode main'\n\n",
-            "",
-        )
     data = tomllib.loads(text)
     if leader:
         text = text.replace("mouse-modifier = 'alt'", "mouse-modifier = 'none'")
@@ -91,25 +75,38 @@ def build_app():
     # Both SPM products would collide with the helper name if copied verbatim.
     shutil.copy2(bin_dir / "macarchy", contents / "Helpers" / "macarchy")
     shutil.copy2(ROOT / "docs/config-examples/default-config.toml", contents / "Resources" / "default-config.toml")
+    shutil.copy2(ROOT / "resources/Assets.xcassets/AppIcon.appiconset/icon.png", contents / "Resources" / "AppIcon.png")
     for resource in bin_dir.glob("*.bundle"):
         shutil.copytree(resource, contents / "Resources" / resource.name, dirs_exist_ok=True)
     info = {
         "CFBundleExecutable": "macarchy", "CFBundleIdentifier": "com.hancengiz.macarchy",
         "CFBundleName": "macarchy", "CFBundlePackageType": "APPL",
-        "CFBundleShortVersionString": "0.22.0", "CFBundleVersion": "1",
+        "CFBundleIconFile": "AppIcon", "CFBundleShortVersionString": "0.22.0", "CFBundleVersion": "1",
         "LSMinimumSystemVersion": "13.0", "LSUIElement": True,
         "NSAppleEventsUsageDescription": "Launch applications from your configured shortcuts.",
     }
     with (contents / "Info.plist").open("wb") as file:
         plistlib.dump(info, file)
-    run("codesign", "--force", "--deep", "--sign", "-", str(destination))
+    run("codesign", "--force", "--deep", "--sign", codesign_identity(), str(destination))
     print(f"Built {destination}")
     return destination
+
+def codesign_identity():
+    """Prefer a stable local identity so the Accessibility grant survives rebuilds."""
+    listing = subprocess.run(
+        ["security", "find-identity", "-v", "-p", "codesigning"],
+        capture_output=True, text=True,
+    ).stdout
+    for line in listing.splitlines():
+        if "Developer ID Application" in line:
+            return line.split('"')[1]
+    return "-"
+
+
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stock", action="store_true", help="Shortcut fix for upstream AeroSpace; no scrolling")
     parser.add_argument("--leader", action="store_true", help="Use F18, then an unmodified key; suitable with VoiceOver")
     parser.add_argument("--build", action="store_true", help="Build and install the fork as a separate app")
     parser.add_argument("--build-only", action="store_true", help="Build the app without changing your desktop")
@@ -117,8 +114,6 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--restore", type=Path, help="Restore a backup directory printed during installation")
     args = parser.parse_args()
-    if args.stock and (args.build or args.build_only):
-        parser.error("--stock cannot be combined with --build or --build-only")
     home = Path.home()
     config = home / ".macarchy.toml"
     helper = home / ".config/macarchy"
@@ -139,7 +134,7 @@ def main():
                 target.unlink(missing_ok=True)
         print(f"Restored profile from {backup}. Restart your previous window manager app.")
         return
-    text = profile(args.stock, args.leader)
+    text = profile(args.leader)
     if args.dry_run:
         print(text)
         return
@@ -148,12 +143,10 @@ def main():
         return
     if args.profile_only and not (home / "Applications/macarchy.app/Contents/Helpers/macarchy").is_file():
         parser.error("The fork is not installed yet. Use --build first")
-    if not args.stock and not app and not args.profile_only:
-        parser.error("Use --build for the fork, --profile-only to update it, or --stock for upstream AeroSpace")
+    if not app and not args.profile_only:
+        parser.error("Use --build to build and install, or --profile-only to update an installed fork")
     # Migrate legacy AeroSpace-Omarchy-era paths once, preserving user data.
-    # Never under --stock: upstream AeroSpace still reads the legacy paths.
-    if not args.stock:
-        migrate_legacy_paths(home)
+    migrate_legacy_paths(home)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     backup = home / ".config/macarchy/backups" / stamp
     backup.mkdir(parents=True)

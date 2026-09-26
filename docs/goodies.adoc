@@ -52,7 +52,7 @@ after-startup-command = [
 [#raycast-extension]
 == Macarchy Raycast extension
 
-There is a third party Raycast extension for Macarchy. https://www.raycast.com/limonkufu/aerospace
+There is a third party Raycast extension for Macarchy. You can find it in the Raycast Store by searching for the upstream project name (the extension predates the fork).
 
 If you struggle remembering shortcuts, it's useful to search for commands until they become muscle memory.
 
@@ -81,10 +81,9 @@ macarchy eval 'list-workspaces --monitor mouse --visible | workspace --stdin nex
 Use the software of your choice to assign trackpad gestures to the respective commands.
 Here are a few third party options in alphabetical order:
 
-* https://github.com/acsandmann/aerospace-swipe
 * link:https://folivora.ai/[BetterTouchTool] can assign arbitrary commands to trackpad gestures.
-Beware that you might need to specify full path to macarchy executable https://community.folivora.ai/t/how-to-execute-terminal-command-to-switch-workspaces-with-aerospace/35914
-* https://github.com/MediosZ/SwipeAeroSpace
+Beware that you might need to specify the full path to the macarchy executable (see the https://community.folivora.ai/[BetterTouchTool community] for examples).
+* Swipe-style open source helpers built around the upstream CLI can be adapted by pointing them at the `macarchy` executable.
 
 CAUTION: Make sure that you trust project authors before running the distributed binaries.
 Alternatively, inspect the source code, and build it yourself.
@@ -105,7 +104,7 @@ after-startup-command = ['exec-and-forget sketchybar']
 
 # Notify Sketchybar about workspace change
 exec-on-workspace-change = ['/bin/bash', '-c',
-    'sketchybar --trigger macarchy_workspace_change FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE'
+    'sketchybar --trigger macarchy_workspace_change FOCUSED_WORKSPACE=$MACARCHY_FOCUSED_WORKSPACE'
 ]
 ----
 

@@ -41,15 +41,7 @@ final class OmarchyMenuPanel: NSPanelHud, NSWindowDelegate {
         guard let screen = NSScreen.screens.getOrNil(atIndex: index) ?? NSScreen.screens.first else { return }
         let width = min(560, screen.visibleFrame.width - 32)
         let height = min(520, screen.visibleFrame.height - 32)
-        let background = NSVisualEffectView()
-        background.material = .popover
-        background.blendingMode = .behindWindow
-        background.state = .active
-        background.wantsLayer = true
-        background.layer?.cornerRadius = 8
-        background.layer?.masksToBounds = true
-        background.layer?.borderWidth = 1
-        background.layer?.borderColor = NSColor.separatorColor.cgColor
+        let background = Theme.panelBackground(material: .popover)
         let view = NSHostingView(rootView: OmarchyMenuView(model: model, choose: choose, dismiss: dismissMenu))
         background.addSubview(view)
         contentView = background
@@ -93,13 +85,12 @@ final class OmarchyMenuPanel: NSPanelHud, NSWindowDelegate {
         guard let action = row.node?.action else { return }
         // "macarchy:" is the reserved-action namespace; "aerospace:" is the
         // legacy namespace still written by user menus installed before the rebrand.
-        let reservedAction: String?
-        if action.hasPrefix("macarchy:") {
-            reservedAction = action
+        let reservedAction: String? = if action.hasPrefix("macarchy:") {
+            action
         } else if action.hasPrefix("aerospace:") {
-            reservedAction = "macarchy:" + action.dropFirst("aerospace:".count)
+            "macarchy:" + action.dropFirst("aerospace:".count)
         } else {
-            reservedAction = nil
+            nil
         }
         guard let reservedAction else {
             // Shell actions come only from parsed menu files, never from search text.
@@ -226,7 +217,7 @@ private struct OmarchyMenuView: View {
             }
             Divider()
             HStack {
-                Text(model.activeMenu == "root" ? "Omarchy" : model.activeMenu)
+                Text(model.activeMenu == "root" ? "macarchy" : model.activeMenu)
                 Spacer()
                 Text("\(model.rows.count(where: { model.isSelectable($0) })) actions")
             }
@@ -250,7 +241,11 @@ private struct MenuRowView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         Text(row.label).font(.system(size: 14, weight: .medium))
-                        if row.isChecked { Text("✓").font(.system(size: 12)).foregroundStyle(.green) }
+                        if row.isChecked {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(Theme.accent)
+                        }
                     }
                     if isSearching || row.node == nil, let detail = row.detail {
                         Text(detail).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
@@ -260,7 +255,7 @@ private struct MenuRowView: View {
                 if row.isSubmenu {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary.opacity(0.6))
+                        .foregroundStyle(isSelected ? Theme.accent : .secondary.opacity(0.6))
                 } else if isSelected {
                     Image(systemName: "return").font(.system(size: 12)).foregroundStyle(.secondary)
                 }
@@ -268,8 +263,14 @@ private struct MenuRowView: View {
             .padding(.horizontal, 12)
             .frame(height: isSearching && row.detail != nil ? 52 : 44)
             .contentShape(Rectangle())
-            .background(isSelected ? Color.teal.opacity(0.13) : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .background(
+                RoundedRectangle(cornerRadius: Theme.rowCornerRadius)
+                    .fill(isSelected ? Theme.accent.opacity(Theme.selectionTintOpacity) : Color.clear),
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.rowCornerRadius)
+                    .strokeBorder(isSelected ? Theme.accent.opacity(0.35) : Color.clear, lineWidth: Theme.hairlineWidth),
+            )
         }
         .buttonStyle(.plain)
         .opacity(row.isDisabled ? 0.4 : 1)
@@ -281,7 +282,7 @@ private struct MenuRowView: View {
         if let symbol = row.icon {
             Image(systemName: symbol)
                 .font(.system(size: 18))
-                .foregroundStyle(.teal)
+                .foregroundStyle(Theme.accent)
         } else if let appPath = row.appPath {
             Image(nsImage: NSWorkspace.shared.icon(forFile: appPath))
                 .resizable().aspectRatio(contentMode: .fit)

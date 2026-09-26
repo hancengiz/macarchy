@@ -50,10 +50,7 @@ up anything it replaces under `~/.config/macarchy/backups/`. Enable
 
 - Local builds are ad-hoc signed: every rebuild changes the signature and
   macOS may drop the Accessibility grant — re-enable it after updates.
-- The Homebrew AeroSpace app is kept for rollback; never run two window
-  managers at once.
-- `--stock` installs shortcuts for upstream AeroSpace without fork features;
-  `--leader` uses an F18 leader key for VoiceOver users; `--restore` rolls back.
+- `--leader` uses an F18 leader key for VoiceOver users; `--restore` rolls back.
 
 ## Daily shortcuts
 
@@ -76,6 +73,34 @@ up anything it replaces under `~/.config/macarchy/backups/`. Enable
 
 See [known_issues.md](known_issues.md) for text-input conflicts like
 Option+arrows word navigation.
+
+## Omarchy parity
+
+Implemented (verified in the engine and covered by the test suite):
+
+- Scrolling-column layout with per-column widths, viewport reveal, and
+  scrolling ⇄ tiling toggle preserving proportions (`Option+L`).
+- Omarchy `togglesplit` semantics via `Option+J`; float/tile via `Option+T`.
+- Option-as-Super chords; Command stays with applications.
+- Mouse gestures (Option+drag move/swap, Option+right-drag resize), native
+  edge-resize adoption, mouse-edge focus.
+- Workspaces 1-10 + scratch, pass-through mode, system-mode HUD,
+  Spotlight-like customizable menu (`menu.jsonc`), desktop notifications,
+  workspace indicators, start-at-login.
+
+Deliberate macOS adaptations (platform limits, see
+[known_issues.md](known_issues.md)):
+
+- No compositor: no smooth scrolling animation or per-monitor clipping.
+- Option+arrows/letters replace native text-editing chords while bindings are
+  active; pass-through mode (`Option+;`) or the `--leader` profile restores
+  them. macOS has no separate Super modifier.
+- Pseudo-tiling, modifier+wheel navigation, and a true overlay scratchpad are
+  not ported.
+- Shortcut conflicts with macOS system shortcuts are audited: the default
+  profile binds none (system mode sits on Option+Shift+Esc to avoid the
+  system Speak Selection chord); app-level conflicts are detected live and
+  surface as desktop notices with per-binding pause actions.
 
 ## Development
 

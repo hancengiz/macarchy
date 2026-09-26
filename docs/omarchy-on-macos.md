@@ -1,5 +1,7 @@
 # Omarchy on macOS: Product Requirements and Agent Handoff
 
+_A historical handoff document. The project's current identity, names, and paths are **macarchy** — see the [README](../../README.md) for up-to-date information._
+
 Last updated: 2026-09-07, Europe/Istanbul.
 
 ## 0. Rebrand (2026-09-07, latest)

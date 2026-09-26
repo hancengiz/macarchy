@@ -78,6 +78,8 @@ private let matcherParsers: [String: any ParserProtocol<LegacyWindowDetectedCall
     "workspace": Parser(\.workspace, upcast(parseString)),
     "app-name-regex-substring": Parser(\.appNameRegexSubstring, upcast(parseCasInsensitiveRegex)),
     "window-title-regex-substring": Parser(\.windowTitleRegexSubstring, upcast(parseCasInsensitiveRegex)),
+    "during-macarchy-startup": Parser(\.duringAppStartup, upcast(parseBool)),
+    // Legacy alias accepted for configs migrated from upstream AeroSpace
     "during-aerospace-startup": Parser(\.duringAppStartup, upcast(parseBool)),
 ]
 

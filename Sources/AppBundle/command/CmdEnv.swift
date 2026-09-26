@@ -28,10 +28,10 @@ struct CmdEnv {
     var asMap: [String: String] {
         var result = [String: String]()
         if let windowId {
-            result[AEROSPACE_WINDOW_ID] = windowId.description
+            result[MACARCHY_WINDOW_ID] = windowId.description
         }
         if let workspaceName {
-            result[AEROSPACE_WORKSPACE] = workspaceName.description
+            result[MACARCHY_WORKSPACE] = workspaceName.description
         }
         return result
     }

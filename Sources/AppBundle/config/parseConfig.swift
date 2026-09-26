@@ -184,7 +184,7 @@ func parseDeprecatedAfterLoginCommand(_ raw: OrderedJson, _ backtrace: ConfigBac
     if let array = raw.asArrayOrNil, array.count == 0 {
         return .success([])
     }
-    let msg = "after-login-command is deprecated since AeroSpace 0.19.0. https://github.com/nikitabobko/AeroSpace/issues/1482"
+    let msg = "after-login-command is deprecated and has no effect. macarchy starts at login via 'start-at-login'"
     return .failure(.init(backtrace, msg))
 }
 
@@ -316,14 +316,14 @@ struct ParseConfigResult {
     if config.configVersion < .max {
         let msg = "The current 'config-version = \(config.configVersion)' is outdated. " +
             "Please consider migrating to 'config-version = \(ConfigVersion.max)'. " +
-            "See https://nikitabobko.github.io/AeroSpace/guide#config-version for the migration guide."
+            "See https://github.com/hancengiz/macarchy/blob/main/docs/guide.adoc#config-version for the migration guide."
         c.warnings.append(.init(.emptyRoot, msg))
     }
     return ParseConfigResult(config: config, errors: c.errors, warnings: c.warnings)
 }
 
 func parseIndentForNestedContainersWithTheSameOrientation(_ _: OrderedJson, _ backtrace: ConfigBacktrace) -> ResOrConfigParseDiagnostic<Void> {
-    let msg = "Deprecated. Please drop it from the config. See https://github.com/nikitabobko/AeroSpace/issues/96"
+    let msg = "Deprecated. Please drop it from the config"
     return .failure(.init(backtrace, msg))
 }
 

@@ -10,33 +10,20 @@ You can skip parts that are obvious.
 [#installation]
 == Installation
 
-[#homebrew-installation]
-=== Homebrew installation (Preferred)
+[#build-installation]
+=== Building from sources (Preferred)
 
-https://brew.sh/[Homebrew] is a package manager for macOS
+Macarchy is installed with its Python installer, which builds the app from sources.
 
 [source,bash]
 ----
-brew install --cask nikitabobko/tap/aerospace
+env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer python3 macarchy/install.py --build
 ----
 
-*(Optional)* You might need to configure your shell to enable completion provided by homebrew packages: https://docs.brew.sh/Shell-Completion
-Macarchy provides bash, fish and zsh completions.
+The installer builds `macarchy.app`, installs the profile to `~/.macarchy.toml`, and the helper files to `~/.config/macarchy/`.
+After installation, enable **macarchy** under System Settings -> Privacy & Security -> Accessibility.
 
-You can also install specific previous https://github.com/nikitabobko/homebrew-tap/tree/main/Casks[pinned homebrew Casks versions]:
-[source,bash]
-----
-brew install --cask nikitabobko/tap/aerospace@0.12.0
-----
-
-[#manual-installation]
-=== Manual installation
-
-. Download the latest available zip from https://github.com/nikitabobko/AeroSpace/releases[releases page]
-. Unpack zip
-. Put unpacked `macarchy-v$VERSION/macarchy.app` to `/Applications`
-. Put unpacked `macarchy-v$VERSION/bin/macarchy` anywhere to `$PATH`
-(The step is optional. It is only needed if you want to be able to interact with Macarchy from CLI)
+The installer also accepts `--leader` (use an F18 leader key for VoiceOver users) and `--restore` (roll back a previous installation).
 
 If you see this message
 
@@ -492,10 +479,10 @@ defaults write com.apple.dock expose-group-apps -bool true && killall Dock
 There is an observation that macOS works better and more stable if you disable `Displays have separate Spaces`. (It's enabled by default)
 People report all sorts of weird issues related to focus and performance when this setting is enabled:
 
-* Wrong window may receive focus in multi-monitor setup: https://github.com/nikitabobko/AeroSpace/issues/101[#101] (Bug in Apple API)
-* Wrong borderless Alacritty window may receive focus in *single monitor* setup: https://github.com/nikitabobko/AeroSpace/issues/247[#247] (Bug in Apple API)
-* Performance issues: https://github.com/nikitabobko/AeroSpace/issues/333[#333]
-* macOS randomly switches focus back: https://github.com/nikitabobko/AeroSpace/issues/289[#289]
+* Wrong window may receive focus in multi-monitor setup (Bug in Apple API)
+* Wrong borderless Alacritty window may receive focus in *single monitor* setup (Bug in Apple API)
+* Performance issues
+* macOS randomly switches focus back
 
 When `Displays have separate Spaces` is enabled,
 moving windows between monitors causes windows to move between different Spaces which is not correctly handled by the public APIs Macarchy uses,
@@ -649,14 +636,14 @@ It may be useful for integrating with bars.
 ----
 # Notify Sketchybar about workspace change
 exec-on-workspace-change = ['/bin/bash', '-c',
-    'sketchybar --trigger macarchy_workspace_change FOCUSED=$AEROSPACE_FOCUSED_WORKSPACE'
+    'sketchybar --trigger macarchy_workspace_change FOCUSED=$MACARCHY_FOCUSED_WORKSPACE'
 ]
 ----
 
 Besides the <<exec-env-vars,`exec.env-vars`>>, the process has access to the following environment variables:
 
-* `AEROSPACE_FOCUSED_WORKSPACE` - the workspace user switched to
-* `AEROSPACE_PREV_WORKSPACE` - the workspace user switched from
+* `MACARCHY_FOCUSED_WORKSPACE` - the workspace user switched to
+* `MACARCHY_PREV_WORKSPACE` - the workspace user switched from
 
 For a more elaborate example on how to integrate with Sketchybar see
 xref:./goodies.adoc#show-macarchy-workspaces-in-sketchybar[]
@@ -667,17 +654,17 @@ xref:./goodies.adoc#show-macarchy-workspaces-in-sketchybar[]
 When Macarchy runs a callback's command (such as the `test`/`run` clause of an <<on-window-detected-callback>>, or the command in an <<on-focus-changed-callbacks>>),
 it adds one of the following environment variables to the command's environment to identify the target the callback fired against:
 
-* `AEROSPACE_WINDOW_ID` - the numeric ID of a specific window
-* `AEROSPACE_WORKSPACE` - the name of a specific workspace
+* `MACARCHY_WINDOW_ID` - the numeric ID of a specific window
+* `MACARCHY_WORKSPACE` - the name of a specific workspace
 
-If there is a target window, `AEROSPACE_WINDOW_ID` is set to its ID.
-Otherwise (the target is an empty workspace with no window to point at), `AEROSPACE_WORKSPACE` is set to that workspace's name instead.
+If there is a target window, `MACARCHY_WINDOW_ID` is set to its ID.
+Otherwise (the target is an empty workspace with no window to point at), `MACARCHY_WORKSPACE` is set to that workspace's name instead.
 Exactly one of the two is set at a time.
 
 In practice:
 
-* For <<on-window-detected-callback>>, the target is the newly detected window, so `AEROSPACE_WINDOW_ID` is always set.
-* For <<on-focus-changed-callbacks>> (`on-focus-changed`, `on-focused-monitor-changed`), the target is the new focus, so `AEROSPACE_WINDOW_ID` is set when a window is focused, and `AEROSPACE_WORKSPACE` is set when focus lands on an empty workspace.
+* For <<on-window-detected-callback>>, the target is the newly detected window, so `MACARCHY_WINDOW_ID` is always set.
+* For <<on-focus-changed-callbacks>> (`on-focus-changed`, `on-focused-monitor-changed`), the target is the new focus, so `MACARCHY_WINDOW_ID` is set when a window is focused, and `MACARCHY_WORKSPACE` is set when focus lands on an empty workspace.
 
 Commands that need a target (xref:commands.adoc#layout[layout], xref:commands.adoc#move-node-to-workspace[move-node-to-workspace], xref:commands.adoc#move[move], etc.)
 honor the forwarded context before falling back to the currently focused window or workspace.
@@ -692,11 +679,11 @@ on-window-detected = [
     #      the current workspace to receive focus.
     #   2. 'layout floating' still floats the originally detected window
     #      (not the window that became focused after step 1), because the second
-    #      command inherits the same AEROSPACE_WINDOW_ID as the first.
+    #      command inherits the same MACARCHY_WINDOW_ID as the first.
     { if = 'true', run = 'move-node-to-workspace 2; layout floating' },
 
     # 'macarchy move-node-to-workspace W' moves the *newly detected* window,
-    # because the child shell inherits AEROSPACE_WINDOW_ID pointing at it.
+    # because the child shell inherits MACARCHY_WINDOW_ID pointing at it.
     { if = 'true', run = 'exec-and-forget sleep 1; macarchy move-node-to-workspace W' },
 ]
 ----
@@ -710,8 +697,8 @@ The full resolution order, from highest to lowest priority, is:
 
 . `--window-id` command-line option
 . `--workspace` command-line option
-. `AEROSPACE_WINDOW_ID` environment variable
-. `AEROSPACE_WORKSPACE` environment variable
+. `MACARCHY_WINDOW_ID` environment variable
+. `MACARCHY_WORKSPACE` environment variable
 . The currently focused window or the currently focused empty workspace
 
 [#multiple-monitors]
@@ -912,12 +899,12 @@ Some commands (e.g. xref:./commands.adoc#workspace[`workspace --stdin`]) consume
 
 | `windowId`
 | unsigned 32-bit integer or `null`
-| The value of the `AEROSPACE_WINDOW_ID` environment variable as the client saw it, or `null` if there is no such variable in scope.
+| The value of the `MACARCHY_WINDOW_ID` environment variable as the client saw it, or `null` if there is no such variable in scope.
 Macarchy sets this variable when invoking callbacks so that the called commands know the window they was triggered from (see <<environment-variables>>).
 
 | `workspace`
 | string or `null`
-| The value of the `AEROSPACE_WORKSPACE` environment variable as the client saw it, or `null` if unset. Same rationale as `windowId`.
+| The value of the `MACARCHY_WORKSPACE` environment variable as the client saw it, or `null` if unset. Same rationale as `windowId`.
 |===
 
 [#socket-server-answer]

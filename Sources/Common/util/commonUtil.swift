@@ -24,7 +24,7 @@ public func bugPrompt(
     let thread = Thread.current
     return """
         Please report to:
-            https://github.com/nikitabobko/AeroSpace/discussions/categories/potential-bugs
+            https://github.com/hancengiz/macarchy/issues
             Please describe what you did to trigger this error
 
         Message: \(_message)

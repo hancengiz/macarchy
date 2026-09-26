@@ -104,8 +104,8 @@ struct LayoutCommand: Command {
             translateChildGeometry(parent: parent, oldLayout: oldLayout)
             parent.changeOrientation(targetOrientation)
             return .succ
-        }
     }
+}
 
 /// Sizes live in per-layout stores: scrolling uses absolute `scrollingSize`
 /// points, tiles uses relative `adaptiveWeight` points. Convert between the two

@@ -120,12 +120,3 @@ cd .release
     zip -r "macarchy-v$build_version.zip" "macarchy-v$build_version"
 cd -
 
-#################
-### Brew Cask ###
-#################
-for cask_name in macarchy macarchy-dev; do
-    ./script/build-brew-cask.sh \
-        --cask-name "$cask_name" \
-        --zip-uri ".release/macarchy-v$build_version.zip" \
-        --build-version "$build_version"
-done

@@ -42,16 +42,21 @@ struct MessageView: View {
 
     public var body: some View {
         VStack(alignment: .leading) {
-            HStack(alignment: .center) {
+            HStack(alignment: .center, spacing: 14) {
                 Image(systemName: model.message?.type == .config ? "exclamationmark.triangle.fill" : "keyboard")
-                    .foregroundColor(model.message?.type == .config ? .yellow : .secondary)
-                    .font(.system(size: 24))
-                Text("\(model.message?.description ?? "")")
-                    .font(.title2)
-                    .padding(.horizontal)
-                    .focusable()
+                    .foregroundColor(model.message?.type == .config ? .yellow : Theme.accent)
+                    .font(.system(size: 26))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(model.message?.description ?? "")")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text(model.message?.title == appName ? "Configuration diagnostics" : model.message?.title ?? "")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
             }
-            .padding()
+            .padding([.top, .horizontal])
+            .padding(.bottom, 10)
             if model.message?.type == .shortcuts {
                 ScrollView {
                     Text(model.message?.body ?? "")

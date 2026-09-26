@@ -156,12 +156,6 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
                 items.append(.separator())
             }
 
-            items.append(action("Sponsor upstream AeroSpace on GitHub") {
-                NSWorkspace.shared.open(URL(string: "https://github.com/sponsors/nikitabobko").orDie())
-                viewModel.sponsorshipMessage = sponsorshipPrompts.randomElement().orDie()
-            })
-            items.append(.separator())
-
             items.append(action(viewModel.isEnabled ? "Disable" : "Enable", key: "e") {
                 Task.startUnstructured {
                     try await runLightSession(.menuBarButton, .forceRun) {
@@ -169,6 +163,11 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
                             .run(.defaultEnv, .emptyStdin)
                     }
                 }
+            })
+
+            items.append(header("Settings:"))
+            items.append(action("Mouse Edge Focus", state: config.enableMouseEdgeFocus ? .on : .off) {
+                toggleMouseEdgeFocusSetting()
             })
 
             let experimental = NSMenuItem(title: "Experimental UI Settings (No stability guarantees)", action: nil, keyEquivalent: "")

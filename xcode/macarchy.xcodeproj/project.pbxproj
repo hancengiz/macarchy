@@ -7,115 +7,115 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		238EF26CAAADD1FE11312D7C /* default-config.toml in Resources */ = {isa = PBXBuildFile; fileRef = 8FE45A887100EB70912B07F0 /* default-config.toml */; };
-		852F88894A3B9FC385563665 /* AppBundle in Frameworks */ = {isa = PBXBuildFile; productRef = 018E55979F61DA6DA6DCB442 /* AppBundle */; };
-		883A44C8295FECF49F94269D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 84C35D8E25B61D4D1ADB1851 /* Assets.xcassets */; };
-		C40E0D9C06086C58955237D9 /* AeroSpaceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18C104E927E079E60C91AE3E /* AeroSpaceApp.swift */; };
+		59DB082BB1CBCB60FDF77845 /* MacarchyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59603347DBEF43C09BBE3B5D /* MacarchyApp.swift */; };
+		77E9882807DC5F282D79C783 /* default-config.toml in Resources */ = {isa = PBXBuildFile; fileRef = 544E626BE683B1DF6816A141 /* default-config.toml */; };
+		80BF7B8F501E8CFB999F9C77 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9DF18B9B4C8105DD33B29C51 /* Assets.xcassets */; };
+		B4410577DD1AAB452DDD83A9 /* AppBundle in Frameworks */ = {isa = PBXBuildFile; productRef = F1F6EA77909DA5047C6524AE /* AppBundle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		09685297933511208058F7CF /* AeroSpace.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AeroSpace.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		18C104E927E079E60C91AE3E /* AeroSpaceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AeroSpaceApp.swift; sourceTree = "<group>"; };
-		226D545E20A3CF547088F832 /* aerospace-package-symlink */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "aerospace-package-symlink"; path = "aerospace-package-symlink"; sourceTree = SOURCE_ROOT; };
-		84C35D8E25B61D4D1ADB1851 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		8FE45A887100EB70912B07F0 /* default-config.toml */ = {isa = PBXFileReference; path = "default-config.toml"; sourceTree = "<group>"; };
-		CF85755BFF66B59A84F98262 /* AeroSpace.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AeroSpace.entitlements; sourceTree = "<group>"; };
+		544E626BE683B1DF6816A141 /* default-config.toml */ = {isa = PBXFileReference; path = "default-config.toml"; sourceTree = "<group>"; };
+		59603347DBEF43C09BBE3B5D /* MacarchyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacarchyApp.swift; sourceTree = "<group>"; };
+		76C86D840F8A7F8FBA192CC3 /* Macarchy.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Macarchy.entitlements; sourceTree = "<group>"; };
+		8B7201582BC3E0B260AA845F /* macarchy-package-symlink */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "macarchy-package-symlink"; path = "macarchy-package-symlink"; sourceTree = SOURCE_ROOT; };
+		9DF18B9B4C8105DD33B29C51 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		ECF119021D18400FEC225E0D /* Macarchy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Macarchy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		2AFAB0BC1A2742132D7CB950 /* Frameworks */ = {
+		A58F2AF99A7F63F680F22C9F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				852F88894A3B9FC385563665 /* AppBundle in Frameworks */,
+				B4410577DD1AAB452DDD83A9 /* AppBundle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		0E0109AE5F7881520B0D2384 /* config-examples */ = {
+		501EB7A4B2D660CF514D467C /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				8FE45A887100EB70912B07F0 /* default-config.toml */,
+				ECF119021D18400FEC225E0D /* Macarchy.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		576C0CB829B6668FC27F9624 /* config-examples */ = {
+			isa = PBXGroup;
+			children = (
+				544E626BE683B1DF6816A141 /* default-config.toml */,
 			);
 			name = "config-examples";
 			path = "../docs/config-examples";
 			sourceTree = "<group>";
 		};
-		21E15F84087042E63C0150AB /* resources */ = {
+		66FFBA1C3E1CEAD1658FF1BE /* MacarchyApp */ = {
 			isa = PBXGroup;
 			children = (
-				CF85755BFF66B59A84F98262 /* AeroSpace.entitlements */,
-				84C35D8E25B61D4D1ADB1851 /* Assets.xcassets */,
+				59603347DBEF43C09BBE3B5D /* MacarchyApp.swift */,
+			);
+			name = MacarchyApp;
+			path = ../Sources/MacarchyApp;
+			sourceTree = "<group>";
+		};
+		808E9944CDF0EB42FCCEDCBF = {
+			isa = PBXGroup;
+			children = (
+				576C0CB829B6668FC27F9624 /* config-examples */,
+				66FFBA1C3E1CEAD1658FF1BE /* MacarchyApp */,
+				D53DB0E7A77D010A362D42E6 /* Packages */,
+				FE3C9149265BA0EBCCF182F8 /* resources */,
+				501EB7A4B2D660CF514D467C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D53DB0E7A77D010A362D42E6 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				8B7201582BC3E0B260AA845F /* macarchy-package-symlink */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		FE3C9149265BA0EBCCF182F8 /* resources */ = {
+			isa = PBXGroup;
+			children = (
+				9DF18B9B4C8105DD33B29C51 /* Assets.xcassets */,
+				76C86D840F8A7F8FBA192CC3 /* Macarchy.entitlements */,
 			);
 			name = resources;
 			path = ../resources;
 			sourceTree = "<group>";
 		};
-		393942C56466FDBBE35F9EC0 = {
-			isa = PBXGroup;
-			children = (
-				6F6BCFA26BF3E35072EF2C77 /* AeroSpaceApp */,
-				0E0109AE5F7881520B0D2384 /* config-examples */,
-				3A1FF786C84025133F96138D /* Packages */,
-				21E15F84087042E63C0150AB /* resources */,
-				62BEA6F49E6648E2EE3C208F /* Products */,
-			);
-			sourceTree = "<group>";
-		};
-		3A1FF786C84025133F96138D /* Packages */ = {
-			isa = PBXGroup;
-			children = (
-				226D545E20A3CF547088F832 /* aerospace-package-symlink */,
-			);
-			name = Packages;
-			sourceTree = "<group>";
-		};
-		62BEA6F49E6648E2EE3C208F /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				09685297933511208058F7CF /* AeroSpace.app */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		6F6BCFA26BF3E35072EF2C77 /* AeroSpaceApp */ = {
-			isa = PBXGroup;
-			children = (
-				18C104E927E079E60C91AE3E /* AeroSpaceApp.swift */,
-			);
-			name = AeroSpaceApp;
-			path = ../Sources/AeroSpaceApp;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		B00BE37A79171B0EE995EB83 /* AeroSpace */ = {
+		780016308FDDE5B0A6654A39 /* Macarchy */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1C34EA41A1F045E016D1944D /* Build configuration list for PBXNativeTarget "AeroSpace" */;
+			buildConfigurationList = 4C0DABFD34F03DC11B14DAC6 /* Build configuration list for PBXNativeTarget "Macarchy" */;
 			buildPhases = (
-				D7A18303C03F2CB26F7BB54B /* Sources */,
-				BA5F2F9022B8385637D263E4 /* Resources */,
-				2AFAB0BC1A2742132D7CB950 /* Frameworks */,
+				B53CE3992464CDD816B9C125 /* Sources */,
+				78DD1425AA471CEC8BB72C25 /* Resources */,
+				A58F2AF99A7F63F680F22C9F /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = AeroSpace;
+			name = Macarchy;
 			packageProductDependencies = (
-				018E55979F61DA6DA6DCB442 /* AppBundle */,
+				F1F6EA77909DA5047C6524AE /* AppBundle */,
 			);
-			productName = AeroSpace;
-			productReference = 09685297933511208058F7CF /* AeroSpace.app */;
+			productName = Macarchy;
+			productReference = ECF119021D18400FEC225E0D /* Macarchy.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		0B585B3093DA0FC12E7983E2 /* Project object */ = {
+		F21203006CF85CC0F13B6395 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
@@ -123,53 +123,77 @@
 				TargetAttributes = {
 				};
 			};
-			buildConfigurationList = D6982B0C3E92C5AF28BCD315 /* Build configuration list for PBXProject "AeroSpace" */;
+			buildConfigurationList = 8B73D2047A0C4B4625BCFFCD /* Build configuration list for PBXProject "Macarchy" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
 				en,
 			);
-			mainGroup = 393942C56466FDBBE35F9EC0;
+			mainGroup = 808E9944CDF0EB42FCCEDCBF;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				767692AAC6F214E25E5903A7 /* XCLocalSwiftPackageReference "aerospace-package-symlink" */,
+				836FD5F65BD94F4B8E6CCE4F /* XCLocalSwiftPackageReference "macarchy-package-symlink" */,
 			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 62BEA6F49E6648E2EE3C208F /* Products */;
+			productRefGroup = 501EB7A4B2D660CF514D467C /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				B00BE37A79171B0EE995EB83 /* AeroSpace */,
+				780016308FDDE5B0A6654A39 /* Macarchy */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		BA5F2F9022B8385637D263E4 /* Resources */ = {
+		78DD1425AA471CEC8BB72C25 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				883A44C8295FECF49F94269D /* Assets.xcassets in Resources */,
-				238EF26CAAADD1FE11312D7C /* default-config.toml in Resources */,
+				80BF7B8F501E8CFB999F9C77 /* Assets.xcassets in Resources */,
+				77E9882807DC5F282D79C783 /* default-config.toml in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		D7A18303C03F2CB26F7BB54B /* Sources */ = {
+		B53CE3992464CDD816B9C125 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C40E0D9C06086C58955237D9 /* AeroSpaceApp.swift in Sources */,
+				59DB082BB1CBCB60FDF77845 /* MacarchyApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		175127AAF914899705FABF12 /* Debug */ = {
+		134160D0C20022C9920A0F53 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ../resources/Macarchy.entitlements;
+				CODE_SIGN_IDENTITY = "${XCODEGEN_MACARCHY_CODE_SIGN_IDENTITY}";
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = "${XCODEGEN_MACARCHY_VERSION}";
+				PRODUCT_BUNDLE_IDENTIFIER = com.hancengiz.macarchy;
+				PRODUCT_NAME = macarchy;
+				SDKROOT = macosx;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+				SWIFT_VERSION = 6.2;
+			};
+			name = Release;
+		};
+		68BCB9E3FF16EDB7253E4A65 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -231,12 +255,12 @@
 			};
 			name = Debug;
 		};
-		31B702864571F51814E4F12C /* Debug */ = {
+		6F3AF0319EA69ECC362F8D41 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = ../resources/AeroSpace.entitlements;
-				CODE_SIGN_IDENTITY = "aerospace-codesign-certificate";
+				CODE_SIGN_ENTITLEMENTS = ../resources/Macarchy.entitlements;
+				CODE_SIGN_IDENTITY = "${XCODEGEN_MACARCHY_CODE_SIGN_IDENTITY}";
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -245,15 +269,15 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = "0.0.0-SNAPSHOT";
-				PRODUCT_BUNDLE_IDENTIFIER = bobko.aerospace.debug;
-				PRODUCT_NAME = "AeroSpace-Debug";
+				MARKETING_VERSION = "${XCODEGEN_MACARCHY_VERSION}";
+				PRODUCT_BUNDLE_IDENTIFIER = com.hancengiz.macarchy.debug;
+				PRODUCT_NAME = "macarchy-Debug";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.2;
 			};
 			name = Debug;
 		};
-		A991F90908318BCD1655E904 /* Release */ = {
+		D909E731A9BA4F37F5ACE9F9 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -308,47 +332,23 @@
 			};
 			name = Release;
 		};
-		D1D1A9E07F0AB40E14CAC0F6 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = ../resources/AeroSpace.entitlements;
-				CODE_SIGN_IDENTITY = "aerospace-codesign-certificate";
-				COMBINE_HIDPI_IMAGES = YES;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSUIElement = YES;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = "0.0.0-SNAPSHOT";
-				PRODUCT_BUNDLE_IDENTIFIER = bobko.aerospace;
-				PRODUCT_NAME = AeroSpace;
-				SDKROOT = macosx;
-				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-				SWIFT_VERSION = 6.2;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		1C34EA41A1F045E016D1944D /* Build configuration list for PBXNativeTarget "AeroSpace" */ = {
+		4C0DABFD34F03DC11B14DAC6 /* Build configuration list for PBXNativeTarget "Macarchy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				31B702864571F51814E4F12C /* Debug */,
-				D1D1A9E07F0AB40E14CAC0F6 /* Release */,
+				6F3AF0319EA69ECC362F8D41 /* Debug */,
+				134160D0C20022C9920A0F53 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		D6982B0C3E92C5AF28BCD315 /* Build configuration list for PBXProject "AeroSpace" */ = {
+		8B73D2047A0C4B4625BCFFCD /* Build configuration list for PBXProject "Macarchy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				175127AAF914899705FABF12 /* Debug */,
-				A991F90908318BCD1655E904 /* Release */,
+				68BCB9E3FF16EDB7253E4A65 /* Debug */,
+				D909E731A9BA4F37F5ACE9F9 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -356,18 +356,18 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		767692AAC6F214E25E5903A7 /* XCLocalSwiftPackageReference "aerospace-package-symlink" */ = {
+		836FD5F65BD94F4B8E6CCE4F /* XCLocalSwiftPackageReference "macarchy-package-symlink" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = "aerospace-package-symlink";
+			relativePath = "macarchy-package-symlink";
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		018E55979F61DA6DA6DCB442 /* AppBundle */ = {
+		F1F6EA77909DA5047C6524AE /* AppBundle */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AppBundle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
-	rootObject = 0B585B3093DA0FC12E7983E2 /* Project object */;
+	rootObject = F21203006CF85CC0F13B6395 /* Project object */;
 }

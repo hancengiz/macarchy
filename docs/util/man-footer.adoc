@@ -1,13 +1,14 @@
 == Resources
 
-*Project homepage:* https://github.com/nikitabobko/AeroSpace +
-*Guide:* https://nikitabobko.github.io/AeroSpace/guide +
+*Project homepage:* https://github.com/hancengiz/macarchy +
+*Guide:* https://github.com/hancengiz/macarchy/blob/main/docs/guide.adoc +
+*Based on AeroSpace by Nikita Bobko (MIT)* +
 
 == BUGS
 
-Bugs can be reported to https://github.com/nikitabobko/AeroSpace/discussions/categories/potential-bugs
+Bugs can be reported to https://github.com/hancengiz/macarchy/issues
 
-Maintainers will move verified bugs to https://github.com/nikitabobko/AeroSpace/issues
+Feature ideas and Q&A are welcome in https://github.com/hancengiz/macarchy/discussions
 
 == License
 
@@ -17,4 +18,4 @@ You can find the full text of Macarchy license and its dependencies in the 'lega
 
 == AUTHOR
 
-Nikita Bobko and contributors
+macarchy contributors

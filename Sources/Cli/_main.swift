@@ -91,7 +91,6 @@ struct Main {
                         ERROR: Implicit stdin is detected (stdin is not TTY). Implicit stdin was forbidden in Macarchy v0.20.0.
                         1. Please supply '--stdin' flag to make stdin explicit and preserve old Macarchy behavior
                         2. You can also use '--no-stdin' flag to behave as if no stdin was supplied
-                        Breaking change issue: https://github.com/nikitabobko/AeroSpace/issues/1683
                         """,
                 )
             }
@@ -105,8 +104,8 @@ struct Main {
             }
         }
 
-        let windowId = ProcessInfo.processInfo.environment[AEROSPACE_WINDOW_ID].flatMap(UInt32.init)
-        let workspace = ProcessInfo.processInfo.environment[AEROSPACE_WORKSPACE]
+        let windowId = ProcessInfo.processInfo.environment[MACARCHY_WINDOW_ID].flatMap(UInt32.init)
+        let workspace = ProcessInfo.processInfo.environment[MACARCHY_WORKSPACE]
 
         // Handle subscribe command specially
         if parsedArgs is SubscribeCmdArgs {

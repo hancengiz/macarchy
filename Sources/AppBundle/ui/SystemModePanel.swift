@@ -85,13 +85,7 @@ final class SystemModePanel: NSPanelHud {
         if hostingView == nil || displayedRows != rows || hostingView?.frame.width != width {
             displayedRows = rows
             let view = NSHostingView(rootView: SystemModeView(rows: rows, width: width))
-            let background = NSVisualEffectView()
-            background.material = .hudWindow
-            background.blendingMode = .behindWindow
-            background.state = .active
-            background.wantsLayer = true
-            background.layer?.cornerRadius = 8
-            background.layer?.masksToBounds = true
+            let background = Theme.panelBackground(material: .hudWindow)
             background.addSubview(view)
             contentView = background
             hostingView = view
@@ -109,21 +103,22 @@ private struct SystemModeView: View {
     let width: CGFloat
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 8) {
             Label("System Controls", systemImage: "slider.horizontal.3")
                 .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.accent)
             Divider()
             ForEach(rows) { row in
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text(row.key).font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .frame(width: 102, alignment: .leading)
+                HStack(spacing: 12) {
+                    KeyCap(key: row.key)
+                        .opacity(row.isExit ? 0.7 : 1)
                     Text(row.action).font(.system(size: 12))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .foregroundStyle(row.isExit ? .secondary : .primary)
             }
         }
-        .padding(14)
+        .padding(16)
         .frame(width: width)
         .fixedSize(horizontal: false, vertical: true)
     }

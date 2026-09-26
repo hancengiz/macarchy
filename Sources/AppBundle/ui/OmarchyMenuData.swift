@@ -95,6 +95,12 @@ func stripJsonc(_ raw: String) -> String {
 
 // MARK: Parsing
 
+/// Legacy overlays written before the rebrand address the macarchy.* subtree as
+/// aerospace.*; normalize ids so they keep merging onto the rebranded entries.
+func normalizeMenuId(_ id: String) -> String {
+    id == "aerospace" ? "macarchy" : id.removePrefix("aerospace.")
+}
+
 /// Parses one JSONC source. Returns nil on any parse failure; a broken source
 /// contributes nothing while the rest of the menu keeps working (reference semantics).
 func parseMenuJsonc(_ raw: String) -> [OmarchyMenuNode]? {
@@ -124,7 +130,7 @@ func parseMenuJsonc(_ raw: String) -> [OmarchyMenuNode]? {
     for (index, key) in orderedKeys.enumerated() {
         guard let fields = entries[key] as? [String: Any] else { continue }
         nodes.append(OmarchyMenuNode(
-            id: key,
+            id: normalizeMenuId(key),
             label: fields["label"] as? String ?? key,
             title: fields["title"] as? String,
             icon: fields["icon"] as? String,

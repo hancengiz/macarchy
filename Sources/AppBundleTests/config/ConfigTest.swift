@@ -50,7 +50,7 @@ final class ConfigTest: XCTestCase {
         assertEquals(result.strWarnings, [
             "[WARNING] The current 'config-version = 1' is outdated. " +
                 "Please consider migrating to 'config-version = \(ConfigVersion.max)'. " +
-                "See https://nikitabobko.github.io/AeroSpace/guide#config-version for the migration guide.",
+                "See https://github.com/hancengiz/macarchy/blob/main/docs/guide.adoc#config-version for the migration guide.",
         ])
     }
 
@@ -444,7 +444,7 @@ final class ConfigTest: XCTestCase {
     }
 
     func testTomlParser() {
-        // https://github.com/nikitabobko/AeroSpace/issues/1064
+        // Regression: malformed triple-bracket table headers must not crash the parser
         let errors = parseConfig(
             """
             [[[on-window-detected]]
@@ -538,7 +538,7 @@ final class ConfigTest: XCTestCase {
         )
         assertEquals(
             result.strErrors,
-            ["[ERROR] after-login-command: after-login-command is deprecated since AeroSpace 0.19.0. https://github.com/nikitabobko/AeroSpace/issues/1482"],
+            ["[ERROR] after-login-command: after-login-command is deprecated and has no effect. macarchy starts at login via 'start-at-login'"],
         )
 
         // Empty array is still accepted
@@ -633,7 +633,7 @@ final class ConfigTest: XCTestCase {
         ).strErrors
         assertEquals(
             errors,
-            ["[ERROR] indent-for-nested-containers-with-the-same-orientation: Deprecated. Please drop it from the config. See https://github.com/nikitabobko/AeroSpace/issues/96"],
+            ["[ERROR] indent-for-nested-containers-with-the-same-orientation: Deprecated. Please drop it from the config"],
         )
     }
 

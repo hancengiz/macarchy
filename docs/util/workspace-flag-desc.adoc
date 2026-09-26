@@ -1,2 +1,2 @@
 Act on the specified workspace instead of the focused workspace.
-The flag takes precedence over `AEROSPACE_WINDOW_ID` and `AEROSPACE_WORKSPACE` environment variables.
+The flag takes precedence over `MACARCHY_WINDOW_ID` and `MACARCHY_WORKSPACE` environment variables.

@@ -229,15 +229,7 @@ final class TrayNoticePanel: NSPanelHud {
     private func updateContent(notice: TrayNotice) {
         displayedNotice = notice
         if background == nil {
-            let background = NSVisualEffectView()
-            background.material = .hudWindow
-            background.blendingMode = .behindWindow
-            background.state = .active
-            background.wantsLayer = true
-            background.layer?.cornerRadius = 8
-            background.layer?.masksToBounds = true
-            background.layer?.borderWidth = 1
-            background.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.35).cgColor
+            let background = Theme.panelBackground(material: .hudWindow)
             contentView = background
             self.background = background
         }
@@ -373,8 +365,9 @@ struct NoticeView: View {
                         Button {
                             action.handler?()
                         } label: {
-                            Text(action.label).font(.system(size: 12))
+                            Text(action.label).font(.system(size: 12, weight: .medium))
                         }
+                        .buttonStyle(CapsuleButtonStyle())
                         .help(action.tooltip)
                     }
                     Spacer(minLength: 0)
@@ -427,6 +420,21 @@ struct NoticeView: View {
                 }
             }
         }
+    }
+}
+/// Omarchy-style pill button used by desktop notices.
+struct CapsuleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Theme.accent)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .background(
+                Capsule().fill(Theme.accent.opacity(configuration.isPressed ? 0.24 : 0.12)),
+            )
+            .overlay(
+                Capsule().strokeBorder(Theme.accent.opacity(0.35), lineWidth: Theme.hairlineWidth),
+            )
     }
 }
 
