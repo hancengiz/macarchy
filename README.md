@@ -40,16 +40,30 @@ AeroSpace; the desktop experience design follows Omarchy.
 
 ## Install
 
-Prebuilt Apple Silicon app bundles are available from
-[GitHub Releases](https://github.com/hancengiz/macarchy/releases). These builds
-are ad-hoc signed, not notarized; macOS may require approval before opening
-and a fresh Accessibility grant. The source installer below also installs
-the Omarchy profile and helper scripts.
+### Prebuilt app
+
+[Download the latest app ZIP](https://github.com/hancengiz/macarchy/releases/latest/download/macarchy.app.zip)
+or browse the [release notes](https://github.com/hancengiz/macarchy/releases).
+The prebuilt app requires **Apple Silicon (arm64) and macOS 13+**.
+Extract the ZIP and place `macarchy.app` in `~/Applications`.
+Stop other window managers before opening Macarchy.
+
+GitHub builds are **ad-hoc signed, not notarized**. macOS may require approval
+before opening and a fresh Accessibility grant under System Settings →
+Privacy & Security → Accessibility.
+
+The ZIP includes the app, bundled CLI, and default configuration. For the
+Omarchy profile and helper scripts used by the shortcuts below, use the source
+installer. Normal source upgrades preserve an existing configuration.
+
+### Build and install the Omarchy profile
 
 Building requires macOS 13+, Swift 6.2+ (Xcode Command Line Tools), Python 3.11+,
 and Bash 5 (`brew install bash`). Full Xcode is needed for XCTest, not release builds.
 
 ```sh
+git clone https://github.com/hancengiz/macarchy.git
+cd macarchy
 python3 macarchy/install.py --build
 ```
 
@@ -71,7 +85,14 @@ Privacy & Security → Accessibility.
 - `--leader` selects an F18 leader profile when installing a profile for
   VoiceOver users; `--restore` restores a backup.
 
+The CLI is bundled at
+`~/Applications/macarchy.app/Contents/Helpers/macarchy`. Use that path directly
+or add its directory to your `PATH` to run the `macarchy` commands below.
+The upstream `aerospace` CLI does not control Macarchy.
+
 ## Daily shortcuts
+
+These bindings belong to the Omarchy profile installed by the source installer.
 
 | Keys | Action |
 | --- | --- |
@@ -134,7 +155,7 @@ Option+arrows word navigation.
 
 ## Omarchy parity
 
-Implemented features (not a claim of full-suite or complete live acceptance):
+Implemented Macarchy behaviors, with deliberate platform differences listed below:
 
 - Scrolling-column layout with per-column widths, viewport reveal, and
   scrolling ⇄ tiling toggle preserving proportions (`Option+L`).
@@ -165,11 +186,46 @@ Deliberate macOS adaptations (platform limits, see
 
 ## Development
 
+Build without installing or changing your running desktop:
+
+```sh
+python3 macarchy/install.py --build-only
+.local/macarchy.app/Contents/MacOS/macarchy --version
+.local/macarchy.app/Contents/Helpers/macarchy --help
+```
+
+The build generates the Swift metadata needed by a fresh checkout. Then run:
+
 ```sh
 env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 python3 -m unittest discover -s macarchy -p 'test_*.py'
 bash -n macarchy/action
 ```
 
-The full product brief and continuation notes live in
-[docs/omarchy-on-macos.md](docs/omarchy-on-macos.md).
+Swift tests require full Xcode; adjust `DEVELOPER_DIR` if yours is installed
+elsewhere. See the [development guide](dev-docs/development.md) for toolchain,
+formatting, debugging, and release-workflow details.
+
+## Contributing
+
+**Pull requests are welcome.** Bug fixes, documentation, accessibility and
+multi-monitor improvements, and focused features all help. Fork this repository
+and open a [pull request](https://github.com/hancengiz/macarchy/pulls) against
+`main`. For larger behavior changes, open an
+[issue](https://github.com/hancengiz/macarchy/issues) first to discuss the scope.
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, verification, and what to include
+in a PR or bug report. Please send Macarchy-specific changes and reports here,
+rather than to the upstream AeroSpace project.
+
+## Documentation
+
+- [User guide](docs/guide.adoc) and [command reference](docs/commands.adoc)
+- [Known issues and macOS limitations](known_issues.md)
+- [Architecture](dev-docs/architecture.md)
+- [Product requirements and implementation history](docs/omarchy-on-macos.md)
+
+## License
+
+[MIT](LICENSE.txt). Upstream AeroSpace attribution and copyright notices are retained.
+

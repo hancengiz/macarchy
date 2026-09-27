@@ -1,11 +1,16 @@
-# Omarchy on macOS: Product Requirements and Agent Handoff
+# Omarchy on macOS: Product Requirements and Implementation Notes
 
 _Historical implementation notes with current session, Settings, and upgrade
 contracts updated below. The project's identity, names, and paths are
 **macarchy** — see the [README](../README.md) for setup._
 
-Feature-contract update: 2026-09-26. Older dated verification entries remain
-historical evidence, not claims that the current full test suite ran.
+Feature-contract update: 2026-09-26. Release **v0.22.1** was published on
+2026-09-26 from commit `726282bb0d51f346d15d0fe6faaa9dc032c44a56`.
+Its [release workflow](https://github.com/hancengiz/macarchy/actions/runs/36278685201)
+passed **462 Swift tests and 6 Python installer tests**, plus packaged-executable
+and signature checks. The downloaded release archive was also smoke-checked.
+Older dated entries below remain historical observations, not blanket live
+acceptance claims. Contributor setup lives in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## 0. Rebrand (2026-09-07)
 
@@ -34,17 +39,17 @@ live verification. Each area records its separate verification and acceptance st
 
 | Item | Location |
 | --- | --- |
-| Working repository | `/Users/cengiz_han/workspace/code/AeroSpace` |
-| Working branch | `omarchy-desktop` |
-| User's fork / `origin` | `https://github.com/hancengiz/AeroSpace.git` |
+| Repository | `https://github.com/hancengiz/macarchy` |
+| Working branch | `main` |
+| Fork / `origin` | `https://github.com/hancengiz/macarchy.git` |
 | `upstream` | `https://github.com/nikitabobko/AeroSpace.git` |
-| Local Omarchy reference source | `/Users/cengiz_han/workspace/code/omarchy` |
+| Contribution guide | [CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Public references | <https://omarchy.org/manual/> and <https://omarchy.org/manual/hotkeys/> |
-| Existing fork guide | [omarchy/README.md](../omarchy/README.md) |
+| Project guide | [README.md](../README.md) |
 
-All feature edits remain local and uncommitted. No feature commit or push was
-made during this work. There are many modified and untracked files; preserve them.
-Read the worktree before editing. Do not reset it or overwrite user configuration.
+The feature work is committed, pushed, and published as
+[v0.22.1](https://github.com/hancengiz/macarchy/releases/tag/v0.22.1).
+Preserve any subsequent local changes and user configuration when continuing work.
 
 ## 2. Product Goal
 
@@ -126,10 +131,10 @@ current permission and process state instead of relying on historical PIDs.
 - [x] Add a profile/helper installer with backups, dry run, build-only,
   profile-only, stock, leader, and restore paths.
 - [x] Use ordered workspace indicators in the menu bar (`i3Ordered`).
-- [ ] Commit/push reviewed changes only when requested; none have been published.
+- [x] Commit and push the reviewed work; published as v0.22.1.
 
 Implementation: `Sources/Common/appMetadata.swift`,
-`Sources/AppBundle/config/startAtLogin.swift`, `omarchy/install.py`.
+`Sources/AppBundle/config/startAtLogin.swift`, `macarchy/install.py`.
 
 Packaging trap already fixed: default Mac filesystems are case-insensitive.
 Putting `AeroSpace` and `aerospace` in the same directory overwrites one with the
@@ -525,9 +530,10 @@ Earlier shell syntax checks and `git diff --check` passed. These checks do not
 establish UI acceptance, installation correctness for the new menu, or complete
 live mouse/multi-monitor behavior.
 
-For the current release, full Xcode/XCTest was unavailable; no current full-suite
-pass is claimed. The release builds with Command Line Tools. Installed live
-checks confirmed native Settings opens with General/App Widths/Shortcuts,
+For v0.22.1, the full suite passed on GitHub's full-Xcode runner: **462 Swift
+tests and 6 Python installer tests**, with zero failures. Full Xcode/XCTest was
+unavailable on the local machine; release builds worked with Command Line Tools.
+Installed live checks confirmed native Settings opens with General/App Widths/Shortcuts,
 layout-preserving restart (details in WM-02), and byte-for-byte preservation of
 the existing configuration during upgrade.
 Additional live checks exercised Settings Save Width, floating-width capture,
@@ -546,41 +552,39 @@ Focused added tests:
 - `Sources/AppBundleTests/SystemModePanelTest.swift`
 - `Sources/AppBundleTests/TrayNoticeTest.swift`
 - `Sources/AppBundleTests/OmarchyMenuDataTest.swift`
-- `omarchy/test_install.py`
+- `macarchy/test_install.py`
 
 Commands, from the repository root:
 
 ```sh
+python3 macarchy/install.py --build-only
 env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 python3 -m unittest discover -s macarchy -p 'test_*.py'
 bash -n macarchy/action
-python3 macarchy/install.py --build-only
 ```
 
 Full Xcode is needed for XCTest, not release builds: Command Line Tools can build
 the current release. Bash 5 is required; system Bash 3 cannot run all generation scripts.
-The installer invokes the correct Bash and uses release `-Xswiftc -DOMARCHY`.
-The repo formatter is `.deps/swiftformat/swiftformat`; format only touched files.
-Generated `Sources/Common/versionGenerated.swift` was restored to its original
-`0.0.0-SNAPSHOT` after builds to avoid unrelated metadata churn.
+The installer selects the Homebrew Bash and generates version/Git metadata
+before building. See [the development guide](../dev-docs/development.md) for
+toolchain setup and generated-file handling. Format only touched Swift files.
 
-For native UI verification, prior work used the computer-use skill and
-`@oai/sky` through Node REPL. Read the skill before reuse. App-state screenshots
-can inspect the HUD and dialogs. That tool's app-targeted key presses do not
-invoke global shortcuts; use the fork CLI's `trigger-binding` for command-path
-checks, and separately verify actual global-key behavior when possible.
+For native UI changes, inspect the actual app and include screenshots or a short
+recording when useful. The fork CLI's `trigger-binding` exercises the command
+path but does not prove that a physical global shortcut can be registered and
+invoked; verify the real key chord separately.
 
 Useful live commands after installing a matching binary/profile:
 
 ```sh
-~/Applications/AeroSpace-Omarchy.app/Contents/Helpers/aerospace list-modes --current
-~/Applications/AeroSpace-Omarchy.app/Contents/Helpers/aerospace reload-config --no-gui
-~/Applications/AeroSpace-Omarchy.app/Contents/Helpers/aerospace trigger-binding --mode main alt-shift-esc
-~/Applications/AeroSpace-Omarchy.app/Contents/Helpers/aerospace trigger-binding --mode system esc
+~/Applications/macarchy.app/Contents/Helpers/macarchy list-modes --current
+~/Applications/macarchy.app/Contents/Helpers/macarchy reload-config --no-gui
+~/Applications/macarchy.app/Contents/Helpers/macarchy trigger-binding --mode main alt-shift-esc
+~/Applications/macarchy.app/Contents/Helpers/macarchy trigger-binding --mode system esc
 ```
 
 `exec-and-forget` is config-only, not a CLI subcommand. Do not copy failed
-`aerospace exec-and-forget ...` experiments into installation instructions.
+`macarchy exec-and-forget ...` experiments into installation instructions.
 
 ## 8. Installation Safety and Rollback
 
@@ -603,7 +607,7 @@ Useful live commands after installing a matching binary/profile:
 - Do not close/edit unrelated user windows. An existing TextEdit Untitled document
   was present during tests; treat it as user data, not a disposable fixture.
 
-Backups under `~/.config/aerospace/backups/` include:
+Historical backups from the original implementation were recorded under `~/.config/aerospace/backups/`:
 
 | Backup | Meaning |
 | --- | --- |
@@ -614,27 +618,26 @@ Backups under `~/.config/aerospace/backups/` include:
 | `20260907-185919-139683` | Installer backup before the menu/notice/lifetime build (includes prior app) |
 
 Only installer-created directories containing `manifest.json` work with
-`omarchy/install.py --restore`. The HUD backup is a manual app/config snapshot,
+`python3 macarchy/install.py --restore`. The HUD backup is a manual app/config snapshot,
 not that manifest format. Restore also does not automatically switch running
 apps or remove all newly introduced helper files; inspect before using it.
 
 ## 9. Recommended Continuation Order
 
-1. Get pixel-level visual acceptance of the launcher panel and the tray notice
-   from the user (the agent session cannot capture the screen). The user
-   previously saw an empty popup from a broken build; the render path is
-   hardened but unconfirmed visually. Known specifics to eyeball: notice
-   appears below the workspace indicators with content, slides down, closes on
-   outside click/Escape; menu rows show icons/descriptions; submenus navigate
-   with Right/Backspace.
+1. Continue visual acceptance on varied displays and accessibility settings.
+   Native Settings, compact notices, and workspace indicators were visually
+   checked during the later implementation work. Verify the launcher, menu
+   navigation, notice dismissal, and actual key chords on the target setup;
+   record the steps and result rather than inferring them from unit tests.
 2. If visuals pass, complete UI-03 residuals: editable appearance/theme config,
    route aliases (`omarchy menu summon <name>` equivalent), per-user provider
    behavior beyond `apps`.
 3. Complete mouse, resize, focus, and multi-monitor acceptance (WM-02/WM-03
    open items); record residual macOS limitations without claiming untested
    parity.
-4. Commit/push when the user asks. All work is local and uncommitted.
-5. Keep this PRD and the fork guide updated with actual results.
+4. Submit subsequent focused changes through PRs against `main`; v0.22.1 is
+   already published. Follow [CONTRIBUTING.md](../CONTRIBUTING.md).
+5. Keep these implementation notes and the project guide updated with actual results.
 
 ## 10. Broader Parity Backlog
 

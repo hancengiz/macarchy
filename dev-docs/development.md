@@ -1,83 +1,127 @@
-# Development Notes
+# Developing Macarchy
 
-To build/install from sources do the following:
-1. Install dependencies
-2. Create codesign certificate in `Keychain Access.app`
-3. Run one of the entry point scripts to build/install from sources
+For pull requests and bug reports, start with [CONTRIBUTING.md](../CONTRIBUTING.md).
+Run the commands below from the repository root.
 
-If you struggle to build Macarchy locally, you can also refer to the CI builds in [macarchy-release.yml](../.github/workflows/macarchy-release.yml)
+## Prerequisites
 
-## Definitions
+- macOS 13 or newer.
+- Swift 6.2 or newer. Full Xcode 26+ is required for XCTest; a compatible
+  Command Line Tools installation is sufficient for release builds.
+- Python 3.11+ and Bash 5. macOS's system Bash 3 cannot run the build scripts.
+- Git and Homebrew for the setup commands below.
 
-**SPM.** Swift package manager and Swift build tool. In other words, `swift` CLI tool
+```sh
+brew install bash python
+export PATH="$(brew --prefix)/bin:$PATH"
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+swift --version
+bash --version
+```
 
-## 1. Install dependencies
+Adjust `DEVELOPER_DIR` to your full Xcode installation. For build-only work with
+Command Line Tools, omit that export. If you use Swiftly, the repository's
+`.swift-version` records its toolchain selection.
 
-1.  Install Xcode from App Store https://apps.apple.com/us/app/xcode/id497799835
-2.  Install [swiftly](https://github.com/swiftlang/swiftly).
-    Swiftly is a Swift toolchain manager that will make sure that you use the same swift version as written in `.swift-version` file.
-    `brew install swiftly`
-3.  If you want to build shell completion, install rust, bash and fish
-    -   Install Rust using rustup. https://www.rust-lang.org/tools/install
-    -   `brew install bash fish`
-4.  If you want to build man pages, install Ruby >= 3.0. I recommend using [rbenv](https://github.com/rbenv/rbenv).
-    -   `rbenv install 3.3.4` (or whatever 3.x version)
-    -   Install asciidoctor using Ruby `bundler`. `cd macarchy && bundler install`
-5.  Install optional `xcbeautify` to make Xcode build logs readable. `brew install xcbeautify`
+## Build without changing your desktop
 
-## 2. Create codesign certificate
+```sh
+python3 macarchy/install.py --build-only
+.local/macarchy.app/Contents/MacOS/macarchy --version
+.local/macarchy.app/Contents/Helpers/macarchy --help
+codesign --verify --deep --strict .local/macarchy.app
+```
 
-If you want to run Macarchy as App Bundle (macarchy.app) you need to create self-signed certificate that will be used to codesign Macarchy.
-Release artifact is built as App Bundle.
-If you only plan to build the debug version of Macarchy, you can run it from the terminal and custom certificate is not required.
+The installer generates command help and version/Git metadata, builds both Swift
+executables, packages the default configuration and resources, and signs
+`.local/macarchy.app`. It does not install, launch, or replace your running app
+in `--build-only` mode.
 
-1.  Open `Keychain Access.app`
-2.  Menu -> `Keychain Access` -> `Certificate Assistance` -> `Create a Certificate...`
-    -   Name: `macarchy-codesign-certificate`
-    -   Identity Type: `Self-Signed Root`
-    -   Certificate Type: `Code Signing`
+An available Developer ID Application identity is preferred; otherwise the
+bundle is ad-hoc signed. You do not need to create a self-signed certificate
+for this workflow. Ad-hoc builds may need Accessibility access granted again.
+Use `--build-version` to override the version embedded in the app and CLI.
 
-## 3. Entry point scripts
+## Tests and generated files
 
-**Debug build**
--   `build-debug.sh` - Build debug build to `.debug` dir by using SPM. (Xcode is not involved)
--   `test.sh` - Run tests.
--   `swiftformat.sh` - Format the code.
--   `run-debug.sh` - Run macarchy.app debug build.
--   `run-cli.sh` - Run `macarchy` in CLI. Arguments are forwarded to `macarchy` binary.
--   `build-docs.sh` - Build the site and man pages to `.site` and `.man` dirs respectively.
--   `build-shell-completion.sh` - Build shell completion to `.shell-completion`.
-    You can test that the completion works properly by sourcing the file `source ./.shell-completion/zsh/_macarchy`
--   `generate.sh` - Regenerate generated project files. `xcode/macarchy.xcodeproj` is generated, and some of the source files
-    (the source files have `Generated` suffix in their names).
+After the build above has generated the required files:
 
-**Release build**
--   `build-release.sh` - Build release build to `.release` dir by using Xcode.
+```sh
+swift test
+python3 -m unittest discover -s macarchy -p 'test_*.py'
+bash -n macarchy/action
+```
 
-## IDE
+If `swift test` reports `no such module XCTest`, select full Xcode rather than
+Command Line Tools. Report unavailable checks in the PR rather than claiming
+they passed.
 
--   You can obviously [open the project in Xcode](#xcode).
--   You can use your editor of choice (Neovim, Vim, Emacs, Sublime, VS Code) by using [sourcekit-lsp LSP](https://github.com/apple/sourcekit-lsp).
-    I only tested it in Neovim
--   AppCode. The initial codebase was written in AppCode and the IDE was pretty solid.
-    But AppCode was unfortunately sunsetted, and it started falling apart.
-    Last time I checked it, it didn't support Swift 5.9 features, and I couldn't make it reliably import the project.
-    RIP
+For a generation-only bootstrap, or after changing commands:
 
-## Xcode
+```sh
+./generate.sh --ignore-xcodeproj
+```
 
-Even if you use LSP and another text editor, Xcode is still useful to attach debugger (though you can use `lldb` in CLI).
+The script uses Bash 5 from your `PATH`. Command help and descriptions come from
+`docs/macarchy-*.adoc`. When changing command syntax, keep those docs,
+`grammar/commands-bnf-grammar.txt`, and the argument parser aligned. Regenerate
+and include changes to tracked generated files; do not hand-edit generated output.
 
-1.  To open the project in Xcode: File -> Open -> Choose `Package.swift` file instead of `xcode/macarchy.xcodeproj`.
-    It's better to open `Package.swift`, because SPM project is more lightweight.
-    `xcode/macarchy.xcodeproj` is only used in `*release*.sh` build scripts.
-2.  After you opened the project in Xcode.
-    Edit Scheme... -> Options -> Console -> Choose `Terminal`.
-    This way Accessibility permission will be requested from Terminal.
-    If you don't change Console to `Terminal`, Accessibility permission will be requested on every rebuild, because the debug binary is unsigned.
+`./test.sh` is a broader wrapper that also treats build warnings as errors,
+checks CLI output, runs lint, and checks for generated-file drift. It is not the
+same check set as the current release action.
 
-## Tips
+## Formatting
 
-- Use built-in "Accessibility Inspector.app" to inspect accessibility properties of windows
-- Use [DeskPad](https://github.com/Stengo/DeskPad) or [BetterDisplay 2](https://github.com/waydabber/BetterDisplay) to emulate several monitors
-- You can use `script/clean-project.sh` to clean the project when something goes wrong.
+```sh
+./script/install-dep.sh --swiftformat
+```
+
+Run `.deps/swiftformat/swiftformat` with the Swift file paths you changed; it uses
+the repository's `.swiftformat` configuration. `./format.sh` formats the whole
+repository, so avoid committing unrelated formatting changes.
+
+## Debugging and live verification
+
+Open `Package.swift` in Xcode, or use an editor with SourceKit-LSP. After
+generation, `swift build` builds the debug executables.
+`./build-debug.sh` also builds the test target and stages binaries in `.debug`;
+`./run-debug.sh` builds and launches the debug app, and `./run-cli.sh` addresses
+it with the debug CLI.
+
+For Xcode launches, selecting **Edit Scheme → Options → Console → Terminal**
+can make Accessibility permission apply to the terminal hosting the debug
+process. Check the actual permission state on your system.
+
+Do not run two window managers at once. Use a disposable config and test windows
+for layout experiments; never include personal session data, app bundles,
+signing credentials, or unredacted window titles in a PR. Keep a backup before
+testing installation with `python3 macarchy/install.py --build`.
+
+For layout, Settings, shortcut, or restart changes, exercise the actual app as
+well as automated checks. Record the macOS version, display arrangement, steps,
+and observed result. Accessibility Inspector can help diagnose window behavior.
+The architecture overview is in [architecture.md](architecture.md).
+
+## Optional documentation and shell completions
+
+- `./build-docs.sh` builds the site and man pages. It needs Ruby 3+ and the
+  repository's Bundler dependencies.
+- `./build-shell-completion.sh` builds shell completions. It additionally needs
+  Rust/Cargo and Fish.
+- `./generate.sh` without `--ignore-xcodeproj` also generates the Xcode project.
+
+## Release automation
+
+[macarchy-release.yml](../.github/workflows/macarchy-release.yml) selects Xcode
+26.3 on `macos-15`, builds with the Python installer, runs Swift and Python
+tests, smoke-checks the bundled executables and signature, and uploads the ZIP.
+It runs on pushes to `main`, `v*` tags, and manual dispatch; it does not currently
+run automatically for pull requests.
+
+Pushing a `v*` tag publishes a GitHub release using the tag's version. Maintainers
+should update `DEFAULT_BUILD_VERSION` in `macarchy/install.py` and verify the
+`main` workflow before tagging a new release. The published bundle is Apple
+Silicon-only, ad-hoc signed, and not notarized. The Python installer is the
+packaging path used by the action; the legacy `build-release.sh` is not.
+
