@@ -26,6 +26,22 @@ jobs:
       - name: Install build prerequisites
         run: brew install bash
 
+      - name: Import signing identity (optional)
+        if: ${{ secrets.MACARCHY_SIGNING_CERT != '' }}
+        env:
+          MACARCHY_SIGNING_CERT: ${{ secrets.MACARCHY_SIGNING_CERT }}
+          MACARCHY_CERT_PASSWORD: ${{ secrets.MACARCHY_CERT_PASSWORD }}
+          MACARCHY_KEYCHAIN_PASSWORD: ${{ secrets.MACARCHY_KEYCHAIN_PASSWORD }}
+        run: |
+          CERT_DIR="$(mktemp -d)"
+          printf '%s' "$MACARCHY_SIGNING_CERT" | base64 -d > "$CERT_DIR/cert.p12"
+          security create-keychain -p "$MACARCHY_KEYCHAIN_PASSWORD" build.keychain
+          security import "$CERT_DIR/cert.p12" -k build.keychain \
+            -P "$MACARCHY_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$MACARCHY_KEYCHAIN_PASSWORD" build.keychain
+          security list-keychains -d user -s build.keychain login.keychain-db
+
       - name: Build versioned release app
         run: |
           args=(--build-only)
