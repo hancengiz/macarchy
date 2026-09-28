@@ -46,6 +46,7 @@ func runHeavyCompleteRefreshSession(
             updateTrayText()
             SecureInputPanel.shared.refresh()
             refreshSystemModePanel()
+            refreshBordersPanel()
             try await normalizeLayoutReason()
             if shouldLayoutWorkspaces { try await layoutWorkspaces() }
             SessionState.shared.scheduleSave()
@@ -87,6 +88,7 @@ func runLightSession<T>(
         updateTrayText()
         SecureInputPanel.shared.refresh()
         refreshSystemModePanel()
+        refreshBordersPanel()
         if !event.isFocusFollowsMouse { try await layoutWorkspaces() }
 
         if focusBefore != focusAfter {

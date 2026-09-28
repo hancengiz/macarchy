@@ -53,6 +53,7 @@ struct Config: ConvenienceMutable {
     var adoptNativeWindowResize = false
     var warnAboutShortcutConflicts = false
     var showSystemModeOverlay = false
+    var borders = BordersConfig()
     var enableNormalizationOppositeOrientationForNestedContainers: Bool = true
     var persistentWorkspaces: OrderedSet<String> = []
     var execOnWorkspaceChange: [String] = [] // todo deprecate
