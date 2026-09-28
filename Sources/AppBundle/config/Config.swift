@@ -54,6 +54,7 @@ struct Config: ConvenienceMutable {
     var warnAboutShortcutConflicts = false
     var showSystemModeOverlay = false
     var borders = BordersConfig()
+    var palette = PaletteConfig()
     var enableNormalizationOppositeOrientationForNestedContainers: Bool = true
     var persistentWorkspaces: OrderedSet<String> = []
     var execOnWorkspaceChange: [String] = [] // todo deprecate

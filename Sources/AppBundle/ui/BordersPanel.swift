@@ -16,9 +16,10 @@ func bordersRingFrame(windowRect: CGRect, width: Int) -> CGRect {
     return windowRect.insetBy(dx: -w / 2, dy: -w / 2)
 }
 
-func bordersRingColor(_ name: String) -> NSColor {
+func bordersRingColor(_ name: String, paletteName: String = "default") -> NSColor {
     switch name {
         case "auto": .controlAccentColor
+        case "palette": Palette(name: paletteName).focus ?? .controlAccentColor
         case "blue": .blue
         case "red": .red
         case "green": .green
@@ -60,7 +61,7 @@ final class BordersPanel: NSPanelHud {
             return
         }
         let width = config.borders.width
-        ringView.layer?.borderColor = bordersRingColor(config.borders.color).cgColor
+        ringView.layer?.borderColor = bordersRingColor(config.borders.color, paletteName: config.palette.name).cgColor
         ringView.layer?.borderWidth = CGFloat(width)
         ringView.layer?.cornerRadius = 6
         setFrame(
