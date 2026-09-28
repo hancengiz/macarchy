@@ -51,7 +51,7 @@ final class SystemModePanelTest: XCTestCase {
             """)
         let text = currentShortcutsDescription(parsed.config)
         XCTAssertTrue(text.hasPrefix("MAIN\n"))
-        XCTAssertTrue(text.contains("alt-t\n    layout floating tiling"))
+        XCTAssertTrue(text.contains("⌥T\n    layout floating tiling"))
         XCTAssertTrue(text.contains("SYSTEM\n"))
         XCTAssertFalse(text.contains("alt-esc"))
     }

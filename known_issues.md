@@ -22,6 +22,10 @@ Workarounds:
 - The `--leader` installer profile keeps every binding behind a single F18
   leader key, leaving Option completely free for text input.
 
+The Settings app (Keybindings → Conflicts) lists every binding affected by
+this trade-off, plus any chords macOS itself owns (Spotlight, Mission
+Control, screenshots…).
+
 This is an intentional trade-off: macOS has no separate "Super" modifier, so
 Option must play that role for an Omarchy-like experience. It cannot be fixed
 per-app without synthetic Command forwarding, which this fork deliberately
