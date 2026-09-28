@@ -18,6 +18,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case appearance = "Appearance"
     case gapsAndLayout = "Gaps & Layout"
     case keybindings = "Keybindings"
+    case permissions = "Permissions"
     case about = "About"
     var id: String { rawValue }
 
@@ -26,6 +27,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             case .appearance: "paintbrush"
             case .gapsAndLayout: "rectangle.split.3x1"
             case .keybindings: "keyboard"
+            case .permissions: "hand.raised"
             case .about: "info.circle"
         }
     }
@@ -48,11 +50,20 @@ struct MainSplitView: View {
                 case .appearance: AppearancePanel(model: model)
                 case .gapsAndLayout: GapsLayoutPanel(model: model)
                 case .keybindings: KeybindingsPanel(model: model)
+                case .permissions: PermissionsPanel()
                 case .about: AboutPanel(model: model)
             }
         }
         .safeAreaInset(edge: .bottom) { DiffBar(model: model) }
         .navigationTitle("macarchy Settings")
+        .task {
+            // First run: if the server isn't healthy, land on the walkthrough.
+            let permission = PermissionStatusModel()
+            await permission.refresh()
+            if !permission.state.isGranted {
+                selection = .permissions
+            }
+        }
     }
 }
 
@@ -216,6 +227,55 @@ struct AboutPanel: View {
             KeyValueRow(key: "Config file", value: model.configUrl?.path(percentEncoded: false) ?? "—")
             KeyValueRow(key: "App", value: MacarchySettingsCoreInfo.version)
         }
+    }
+}
+
+// MARK: Permissions (AX walkthrough)
+
+struct PermissionsPanel: View {
+    @StateObject private var permission = PermissionStatusModel()
+
+    var body: some View {
+        SettingsForm("Accessibility") {
+            switch permission.state {
+                case .granted(let count):
+                    Label("macarchy is managing \(count) windows.", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                case .serverNotRunning:
+                    Label(
+                        "macarchy server is not running. Open the macarchy app first.",
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .foregroundStyle(.orange)
+                case .waiting:
+                    Label(
+                        "Server is running but no windows are managed yet — the Accessibility grant is probably missing.",
+                        systemImage: "clock"
+                    )
+                    .foregroundStyle(.orange)
+                case .unknown:
+                    Text("Checking…").foregroundStyle(.secondary)
+            }
+            Text("macarchy needs Accessibility access to manage windows:")
+                .padding(.top, 4)
+            Text(
+                "1. Open System Settings → Privacy & Security → Accessibility\n"
+                    + "2. Enable macarchy (or drag the macarchy app in)\n"
+                    + "3. If the toggle is already on but nothing works, toggle it off and on again"
+            )
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            HStack {
+                Button("Open Accessibility Settings") {
+                    NSWorkspace.shared.open(
+                        URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+                    )
+                }
+                Spacer()
+                Button("Re-check") { Task { await permission.refresh() } }
+            }
+        }
+        .task { await permission.refresh() }
     }
 }
 

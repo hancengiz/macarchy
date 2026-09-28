@@ -8,8 +8,11 @@ public final class PermissionStatusModel: ObservableObject {
         case serverNotRunning
         case waiting // server up but no windows managed: grant pending or fresh install
         case granted(windowsCount: Int)
-    }
 
+        public var isGranted: Bool {
+            if case .granted = self { true } else { false }
+        }
+    }
     @Published public private(set) var state: State = .unknown
     private let probe: () async -> Result<ServerAnswer, ServerClientError>
 
