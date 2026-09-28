@@ -1,11 +1,13 @@
 import contextlib
-import os
 import io
-from pathlib import Path
+import os
 import tempfile
 import tomllib
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
+import install
 from install import parse_identities, pick_identity
 
 

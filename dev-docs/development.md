@@ -37,10 +37,26 @@ executables, packages the default configuration and resources, and signs
 `.local/macarchy.app`. It does not install, launch, or replace your running app
 in `--build-only` mode.
 
-An available Developer ID Application identity is preferred; otherwise the
-bundle is ad-hoc signed. You do not need to create a self-signed certificate
-for this workflow. Ad-hoc builds may need Accessibility access granted again.
+The installer discovers any valid codesigning identity in your login keychain
+(`aerospace-codesign-certificate` first, then Developer ID Application, then
+any other) and signs with it; pass `--identity <name>` to override. A stable
+identity keeps the Accessibility grant across rebuilds. With no identity it
+falls back to ad-hoc signing and warns — every reinstall then needs a fresh
+Accessibility grant.
 Use `--build-version` to override the version embedded in the app and CLI.
+
+## Settings app (fork)
+
+```sh
+swift build -c release --product MacarchySettings -Xswiftc -DOMARCHY
+.build/release/MacarchySettings
+```
+
+GUI settings over the same socket as the CLI. The `-DOMARCHY` flag is
+REQUIRED: without it the binary identifies as upstream AeroSpace and looks
+for the wrong server socket. Draft-then-commit: edits apply only on Save
+(writes the TOML file with comments preserved, then `reload-config`).
+Tests: `swift test --filter MacarchySettingsTests`.
 
 ## Tests and generated files
 
