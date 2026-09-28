@@ -22,7 +22,7 @@ final class ConfigDraftTest: XCTestCase {
 
     func testApplyProducesEditedText() {
         let text = ConfigDraft.apply(
-            edits: [
+            [
                 "gaps.inner.horizontal": "24",
                 "start-at-login": "false",
             ],
