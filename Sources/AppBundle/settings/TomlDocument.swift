@@ -1,0 +1,159 @@
+import Foundation
+
+/// Surgical, comment-preserving editor for the user's TOML config.
+/// Edits single lines in place; never regenerates the file.
+struct TomlDocument {
+    private var lines: [String]
+
+    init(text: String) {
+        lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    }
+
+    var text: String { lines.joined(separator: "\n") }
+
+    // MARK: Sections
+
+    /// Line index of each table header and its normalized name, in order.
+    private func tableHeaders() -> [(index: Int, name: String)] {
+        lines.enumerated().compactMap { index, line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("["), trimmed.hasSuffix("]"), !trimmed.hasPrefix("[[") else { return nil }
+            let name = String(trimmed.dropFirst().dropLast())
+            return (index, Self.normalizeKey(name))
+        }
+    }
+
+    private func sectionBody(mode: String) -> Range<Int>? {
+        let target = Self.normalizeKey("mode.\(mode).binding")
+        let headers = tableHeaders()
+        guard let start = headers.firstIndex(where: { $0.name == target }) else { return nil }
+        let from = headers[start].index + 1
+        let to = headers.index(after: start) < headers.endIndex ? headers[headers.index(after: start)].index : lines.count
+        return from..<to
+    }
+
+    // MARK: Top-level and dotted keys
+
+    @discardableResult
+    public mutating func setValue(path: [String], valueToml: String) -> Bool {
+        let key = Self.normalizeKey(path.joined(separator: "."))
+        if let index = lines.firstIndex(where: { Self.keySide(of: $0) == key }) {
+            lines[index] = "\(path.joined(separator: ".")) = \(valueToml)"
+            return true
+        }
+        // Table form: setValue([bar, enabled]) may target `enabled` inside `[bar]`.
+        if path.count >= 2 {
+            let table = Self.normalizeKey(path.dropLast().joined(separator: "."))
+            let leaf = path.last!
+            let normalizedLeaf = Self.normalizeKey(leaf)
+            if let range = tableSectionRange(named: table) {
+                if let index = range.firstIndex(where: { keySideOrNil(ofLineAt: $0) == normalizedLeaf }) {
+                    lines[index] = "\(leaf) = \(valueToml)"
+                    return true
+                }
+                // Key missing but the table exists: append after its last non-blank row.
+                var insertAt = range.upperBound
+                while insertAt > range.lowerBound, lines[insertAt - 1].trimmingCharacters(in: .whitespaces).isEmpty {
+                    insertAt -= 1
+                }
+                lines.insert("\(leaf) = \(valueToml)", at: insertAt)
+                return true
+            }
+        }
+        let insertAt = lines.firstIndex(where: Self.isTableHeader) ?? lines.count
+        lines.insert("\(path.joined(separator: ".")) = \(valueToml)", at: insertAt)
+        return true
+    }
+
+    /// Body range of a table whose header matches a dotted name (`[bar]`, `[gaps.inner]`).
+    private func tableSectionRange(named table: String) -> Range<Int>? {
+        let headers = tableHeaders()
+        guard let start = headers.firstIndex(where: { $0.name == table }) else { return nil }
+        let from = headers[start].index + 1
+        let to = headers.index(after: start) < headers.endIndex ? headers[headers.index(after: start)].index : lines.count
+        return from..<to
+    }
+
+    func getValue(path: [String]) -> String? {
+        let key = Self.normalizeKey(path.joined(separator: "."))
+        guard let index = lines.firstIndex(where: { Self.keySide(of: $0) == key }) else { return nil }
+        return Self.valueSide(of: lines[index])
+    }
+
+    // MARK: Mode bindings
+
+    func bindings(mode: String) -> [(key: String, valueToml: String)] {
+        guard let range = sectionBody(mode: mode) else { return [] }
+        return lines[range].compactMap { line in
+            guard let key = Self.keySideOrNil(of: line) else { return nil }
+            return (key, Self.valueSide(of: line) ?? "")
+        }
+    }
+
+    @discardableResult
+    public mutating func setBinding(mode: String, key: String, valueToml: String) -> Bool {
+        guard let range = sectionBody(mode: mode) else { return false }
+        let normalized = Self.normalizeKey(key)
+        for index in range where keySideOrNil(ofLineAt: index) == normalized {
+            lines[index] = "\(key) = \(valueToml)"
+            return true
+        }
+        var insertAt = range.lowerBound
+        for index in range.reversed() where keySideOrNil(ofLineAt: index) != nil {
+            insertAt = index + 1
+            break
+        }
+        lines.insert("\(key) = \(valueToml)", at: insertAt)
+        return true
+    }
+
+    @discardableResult
+    public mutating func removeBinding(mode: String, key: String) -> Bool {
+        guard let range = sectionBody(mode: mode) else { return false }
+        let normalized = Self.normalizeKey(key)
+        guard let index = range.firstIndex(where: { keySideOrNil(ofLineAt: $0) == normalized }) else { return false }
+        lines.remove(at: index)
+        return true
+    }
+
+    /// Replace ALL rows of `[mode.<mode>.binding]` with the given rows.
+    /// The header and everything outside the section is preserved; rows
+    /// and inline comments inside are replaced wholesale.
+    @discardableResult
+    public mutating func replaceModeBindings(mode: String, rows: [(key: String, valueToml: String)]) -> Bool {
+        guard let range = sectionBody(mode: mode) else { return false }
+        lines.removeSubrange(range)
+        let rendered = rows.map { "\($0.key) = \($0.valueToml)" }
+        lines.insert(contentsOf: rendered, at: range.lowerBound)
+        return true
+    }
+
+    // MARK: Line parsing
+
+    private func keySideOrNil(ofLineAt index: Int) -> String? {
+        Self.keySideOrNil(of: lines[index])
+    }
+
+    private static func keySideOrNil(of line: String) -> String? {
+        guard !isTableHeader(line), let eq = line.firstIndex(of: "=") else { return nil }
+        return normalizeKey(String(line[..<eq]))
+    }
+
+    private static func keySide(of line: String) -> String {
+        keySideOrNil(of: line) ?? "\u{0}never-matches"
+    }
+
+    private static func valueSide(of line: String) -> String? {
+        guard let eq = line.firstIndex(of: "=") else { return nil }
+        return String(line[line.index(after: eq)...]).trimmingCharacters(in: .whitespaces)
+    }
+
+    private static func isTableHeader(_ line: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        return trimmed.hasPrefix("[") && trimmed.hasSuffix("]")
+    }
+
+    private static func normalizeKey(_ key: String) -> String {
+        key.filter { !$0.isWhitespace }
+    }
+}

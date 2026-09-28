@@ -121,7 +121,7 @@ func shortcutConflictNotice(model: ShortcutConflicts) -> TrayNotice {
             : "No registration conflicts remain in the active mode.",
         actions: [
             TrayNoticeAction(id: "settings", label: "Review in Settings…") {
-                SettingsWindow.shared.show(section: .shortcuts)
+                SettingsWindow.shared.show()
             },
         ],
         lifetime: 8,

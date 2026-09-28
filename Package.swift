@@ -17,7 +17,6 @@ let package = Package(
     products: [
         .executable(name: "macarchy", targets: ["Cli"]),
         // Don't use this build for release, use xcode instead
-        .executable(name: "MacarchyApp", targets: ["MacarchyApp"]),
         // We only need to expose this as a product for xcode
         .library(name: "AppBundle", targets: ["AppBundle"]),
     ],
@@ -83,24 +82,10 @@ let package = Package(
             ],
             swiftSettings: swiftSettings,
         ),
-        .executableTarget(
-            name: "MacarchySettings",
-            dependencies: [
-                .target(name: "MacarchySettingsCore"),
-            ],
-            swiftSettings: swiftSettings,
-        ),
         .testTarget(
             name: "AppBundleTests",
             dependencies: [
                 .target(name: "AppBundle"),
-            ],
-            swiftSettings: swiftSettings,
-        ),
-        .testTarget(
-            name: "MacarchySettingsTests",
-            dependencies: [
-                .target(name: "MacarchySettingsCore"),
             ],
             swiftSettings: swiftSettings,
         ),

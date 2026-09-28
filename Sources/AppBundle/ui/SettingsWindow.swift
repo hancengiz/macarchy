@@ -1,325 +1,739 @@
 import AppKit
 import Common
 import SwiftUI
+import TOMLDecoder
 
 @MainActor
 final class SettingsWindow {
     static let shared = SettingsWindow()
     private var window: NSWindow?
-    private let model = SettingsModel()
 
-    func show(section: SettingsSection = .general) {
-        // Capture before activation so Settings cannot become the save-width target.
-        if window == nil || NSApp.keyWindow !== window { model.captureTarget() }
-        model.values = config
-        model.section = section
+    func show() {
         if window == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 590, height: 570), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-            window.title = "Macarchy Settings"
-            window.identifier = NSUserInterfaceItemIdentifier("macarchy.settings")
-            window.isReleasedWhenClosed = false
-            window.contentMinSize = NSSize(width: 520, height: 430)
-            window.contentMaxSize = NSSize(width: 800, height: 800)
-            let hosting = NSHostingView(rootView: SettingsView(model: model))
-            hosting.sizingOptions = []
-            window.contentView = hosting
-            window.center()
-            window.setFrameAutosaveName("MacarchySettings")
-            self.window = window
+            let contentView = SettingsRootView()
+            let w = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 860, height: 580),
+                styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                backing: .buffered, defer: false
+            )
+            w.title = "macarchy Settings"
+            w.isReleasedWhenClosed = false
+            w.contentView = NSHostingView(rootView: contentView)
+            w.setFrameAutosaveName("macarchy-settings")
+            window = w
         }
-        NoticeCenter.shared.dismiss()
-        NSApp.activate(ignoringOtherApps: true)
+        window?.center()
         window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }
 
-enum SettingsSection: Hashable {
-    case general, appWidths, shortcuts
+// MARK: - Data types
+
+struct BindingRow: Equatable, Identifiable {
+    var id: String { "\(mode)|\(chord)" }
+    let mode: String
+    var chord: String
+    var commandToml: String
+
+    init(mode: String, chord: String, commandToml: String) {
+        self.mode = mode
+        self.chord = chord
+        self.commandToml = commandToml
+    }
 }
+
+// MARK: - Model
 
 @MainActor
-private final class SettingsModel: ObservableObject {
-    @Published var values = config
-    @Published var section = SettingsSection.general
+final class SettingsModel: ObservableObject {
+    @Published var section: Section = .general
+    @Published var originalText: String = ""
+    @Published var edits: [String: String] = [:]
+    @Published var modeEdits: [String: [BindingRow]] = [:]
+    @Published var saveError: String?
     @Published var busy = false
-    @Published var status: String?
-    @Published var isError = false
-    @Published var target: AppWidthSnapshot?
-    @Published var targetIssue: String?
 
-    func captureTarget() {
-        do {
-            guard let window = focus.windowOrNil else { throw SettingsError("Focus an app window, then open Settings to save its current width.") }
-            target = try AppWidthSnapshot(window: window)
-            targetIssue = nil
-        } catch {
-            target = nil
-            targetIssue = error.localizedDescription
+    let profileStore = ProfileStore()
+
+    enum Section: String, CaseIterable, Identifiable {
+        case general = "General"
+        case gapsAndLayout = "Gaps & Layout"
+        case keybindings = "Keybindings"
+        case overlays = "Overlays"
+        case about = "About"
+        var id: String { rawValue }
+
+        var icon: String {
+            switch self {
+                case .general: "gearshape"
+                case .gapsAndLayout: "rectangle.split.3x1"
+                case .keybindings: "keyboard"
+                case .overlays: "square.on.square.dashed"
+                case .about: "info.circle"
+            }
         }
-    }
 
-    func perform(_ action: @escaping @MainActor () async throws -> String) {
-        guard !busy else { return }
-        busy = true
-        status = nil
-        isError = false
-        Task { @MainActor in
-            defer { busy = false; values = config }
-            do {
-                try await runLightSession(.menuBarButton, .forceRun) {
-                    self.status = try await action()
-                }
-            } catch {
-                status = error.localizedDescription
-                isError = true
+        var tint: Color {
+            switch self {
+                case .general: .blue
+                case .gapsAndLayout: .indigo
+                case .keybindings: .orange
+                case .overlays: .purple
+                case .about: .gray
             }
         }
     }
 
-    func set(_ path: [String], _ value: String?) {
-        perform {
-            let url = try ConfigPersistence.set(path, value: value)
-            let warnings = try await ConfigPersistence.reload(url)
-            return warnings.isEmpty ? "Saved." : warnings
+    var configUrl: URL? { configUrl }
+
+    func load() {
+        if let url = configUrl {
+            originalText = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+        }
+        edits = [:]
+        modeEdits = [:]
+        saveError = nil
+    }
+
+    var draftText: String {
+        var doc = TomlDocument(text: ConfigDraft.apply(edits, to: originalText))
+        for (mode, rows) in modeEdits {
+            _ = doc.replaceModeBindings(
+                mode: mode,
+                rows: rows.sorted { $0.chord < $1.chord }.map { ($0.chord, $0.commandToml) }
+            )
+        }
+        return doc.text
+    }
+
+    var changes: [ConfigChange] {
+        var result = ConfigDraft.diff(edits: edits, original: TomlDocument(text: originalText))
+        let doc = TomlDocument(text: originalText)
+        for (mode, rows) in modeEdits.sorted(by: { $0.key < $1.key }) {
+            let old = doc.bindings(mode: mode)
+            let new = rows.sorted { $0.chord < $1.chord }
+            if old.map({ "\($0.key)=\($0.valueToml)" }) == new.map({ "\($0.chord)=\($0.commandToml)" }) { continue }
+            result.append(ConfigChange(
+                keyPath: "mode.\(mode).binding",
+                oldValueToml: "\(old.count) bindings",
+                newValueToml: "\(new.count) bindings"
+            ))
+        }
+        return result
+    }
+
+    var hasUnsavedChanges: Bool { !changes.isEmpty }
+
+    func edit(_ path: String, toToml value: String) { edits[path] = value }
+    func discard() { edits = [:]; modeEdits = [:]; saveError = nil }
+
+    func setModeRows(_ rows: [BindingRow], for mode: String) {
+        modeEdits[mode] = rows
+    }
+
+    func revertMode(mode: String) { modeEdits.removeValue(forKey: mode) }
+
+    func bindingRows(mode: String) -> [BindingRow] {
+        if let staged = modeEdits[mode] { return staged }
+        return TomlDocument(text: originalText).bindings(mode: mode).map {
+            BindingRow(mode: mode, chord: $0.key, commandToml: $0.valueToml)
         }
     }
 
-    func openConfiguration() {
-        perform { try await ConfigPersistence.open(); return "Opened configuration in your editor." }
+    var availableModes: [String] {
+        TomlDocument(text: originalText).text
+            .split(separator: "\n")
+            .compactMap { line in
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                guard trimmed.hasPrefix("[mode."), trimmed.hasSuffix(".binding]") else { return nil }
+                return String(trimmed.dropFirst("[mode.".count).dropLast(".binding]".count))
+            }
+            .sorted()
     }
 
-    func reload() {
-        perform {
-            let warnings = try await ConfigPersistence.reload(ConfigPersistence.activeURL())
-            return warnings.isEmpty ? "Configuration reloaded." : warnings
+    func save() async {
+        saveError = nil
+        guard let url = configUrl, hasUnsavedChanges else { return }
+        let newText = draftText
+        guard (try? TOMLTable(source: newText)) != nil else {
+            saveError = "The edited config is not valid TOML."
+            return
+        }
+        busy = true
+        defer { busy = false }
+        // Write + in-process reload (no socket round-trip).
+        do {
+            try newText.write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            saveError = "Can't write config: \(error.localizedDescription)"
+            return
+        }
+        let result = await reloadConfig_nonCancellable(args: ReloadConfigCmdArgs(rawArgs: []))
+        if result.isOk {
+            originalText = newText
+            edits = [:]
+            modeEdits = [:]
+        } else {
+            // Roll back the file; the server kept last-good config.
+            try? originalText.write(to: url, atomically: true, encoding: .utf8)
+            _ = await reloadConfig_nonCancellable(args: ReloadConfigCmdArgs(rawArgs: []))
+            saveError = result.stdout.isEmpty ? "The server rejected the config." : result.stdout
         }
     }
 
-    func bool(_ key: String, _ keyPath: KeyPath<Config, Bool>) -> Binding<Bool> {
-        Binding(get: { self.values[keyPath: keyPath] }, set: { self.set([key], String($0)) })
+    // MARK: Profile operations
+
+    func saveProfile(name: String) throws {
+        let doc = TomlDocument(text: draftText)
+        var out = ""
+        for mode in availableModes {
+            let rows = doc.bindings(mode: mode)
+            guard !rows.isEmpty else { continue }
+            out += "[mode.\(mode).binding]\n"
+            out += rows.map { "\($0.key) = \($0.valueToml)" }.joined(separator: "\n") + "\n\n"
+        }
+        try profileStore.save(name, toml: out)
     }
 
-    func string(_ key: String, get: @escaping (Config) -> String) -> Binding<String> {
-        Binding(get: { get(self.values) }, set: { self.set([key], ConfigTextEditor.quoteString($0)) })
+    func loadProfile(name: String) throws {
+        guard let toml = try profileStore.load(name) else { return }
+        let profileDoc = TomlDocument(text: toml)
+        for mode in availableModes {
+            let rows = profileDoc.bindings(mode: mode)
+            setModeRows(
+                rows.map { BindingRow(mode: mode, chord: $0.key, commandToml: $0.valueToml) },
+                for: mode
+            )
+        }
+    }
+
+    // MARK: Typed accessors
+
+    func boolValue(path: String) -> Bool? { rawValue(path: path).flatMap(TomlValue.parseBool) }
+    func intValue(path: String) -> Int? { rawValue(path: path).flatMap(TomlValue.parseInt) }
+    func stringValue(path: String) -> String? { rawValue(path: path).flatMap(TomlValue.parseString) }
+
+    func rawValue(path: String) -> String? {
+        if let edited = edits[path] { return edited }
+        return TomlDocument(text: originalText).getValue(path: path.split(separator: ".").map(String.init))
+    }
+
+    func binding(keyPath: String, default defaultValue: Bool) -> Binding<Bool> {
+        Binding(
+            get: { self.boolValue(path: keyPath) ?? defaultValue },
+            set: { self.edit(keyPath, toToml: TomlValue.format(bool: $0)) }
+        )
+    }
+
+    func intBinding(keyPath: String, default defaultValue: Int) -> Binding<Int> {
+        Binding(
+            get: { self.intValue(path: keyPath) ?? defaultValue },
+            set: { self.edit(keyPath, toToml: TomlValue.format(int: $0)) }
+        )
+    }
+
+    func stringBinding(keyPath: String, default defaultValue: String) -> Binding<String> {
+        Binding(
+            get: { self.stringValue(path: keyPath) ?? defaultValue },
+            set: { self.edit(keyPath, toToml: TomlValue.format(string: $0)) }
+        )
     }
 }
 
-private struct SettingsView: View {
-    @ObservedObject var model: SettingsModel
-    @ObservedObject private var conflicts = ShortcutConflicts.shared
-    @State private var selectedBundle = ""
-    @State private var bundleId = ""
-    @State private var appPercentage = 49
+// MARK: - Root view (sidebar + detail + diff bar)
+
+private struct SettingsRootView: View {
+    @StateObject private var model = SettingsModel()
 
     var body: some View {
-        VStack(spacing: 0) {
-            TabView(selection: $model.section) {
-                general.tabItem { Text("General") }.tag(SettingsSection.general)
-                appWidths.tabItem { Text("App Widths") }.tag(SettingsSection.appWidths)
-                shortcuts.tabItem { Text("Shortcuts") }.tag(SettingsSection.shortcuts)
-            }
-            .padding(12)
-            .disabled(model.busy)
-            Divider()
-            VStack(alignment: .leading, spacing: 8) {
-                if let status = model.status {
-                    ScrollView {
-                        Text(status).foregroundStyle(model.isError ? Color.red : Color.secondary)
-                            .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
-                    }.frame(maxHeight: 64)
-                }
-                HStack {
-                    Button("Open Configuration…") { model.openConfiguration() }
-                    Button("Reload") { model.reload() }
-                    Spacer()
-                    if model.busy { ProgressView().controlSize(.small) }
-                }.disabled(model.busy)
-                Text(configUrl.path).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle).help(configUrl.path)
-            }.padding(12)
+        NavigationSplitView {
+            sidebar
+        } detail: {
+            detail
         }
-        .font(.body)
+        .safeAreaInset(edge: .bottom) { DiffBar(model: model) }
+        .frame(minWidth: 820, minHeight: 560)
+        .task { model.load() }
     }
 
-    private var general: some View {
-        Form {
-            Section("Layout") {
-                Picker("Default layout", selection: model.string("default-root-container-layout", get: { $0.defaultRootContainerLayout.rawValue })) {
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(LinearGradient(colors: [.blue, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 30, height: 30)
+                    Image(systemName: "rectangle.split.3x1")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                Text("macarchy")
+                    .font(.system(size: 15, weight: .bold))
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
+
+            ForEach(SettingsModel.Section.allCases) { section in
+                Button { model.section = section } label: {
+                    SidebarRow(section: section, isSelected: model.section == section)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(section.rawValue)
+                .accessibilityAddTraits(model.section == section ? .isSelected : [])
+            }
+            Spacer()
+        }
+        .frame(width: 215)
+    }
+
+    private var detail: some View {
+        ScrollView {
+            Group {
+                switch model.section {
+                    case .general: GeneralPanel(model: model)
+                    case .gapsAndLayout: GapsLayoutPanel(model: model)
+
+
+
+                    case .keybindings: KeybindingsPanel(model: model)
+                    case .overlays: OverlaysPanel(model: model)
+                    case .about: AboutPanel(model: model)
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: 660, alignment: .leading)
+        }
+    }
+}
+
+// MARK: - Sidebar row
+
+private struct SidebarRow: View {
+    let section: SettingsModel.Section
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(isSelected ? Color.white.opacity(0.9) : section.tint.opacity(0.16))
+                    .frame(width: 26, height: 26)
+                Image(systemName: section.icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(section.tint)
+            }
+            Text(section.rawValue)
+                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+            Spacer()
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isSelected ? section.tint.opacity(0.12) : Color.clear)
+        )
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Premium card
+
+struct PremiumCard<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(nsColor: .controlBackgroundColor)))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color(nsColor: .separatorColor).opacity(0.3), lineWidth: 1))
+    }
+}
+
+struct SettingsCard<Content: View>: View {
+    let label: String
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(label.uppercased())
+                .font(.system(size: 10.5, weight: .bold))
+                .foregroundStyle(.secondary.opacity(0.8))
+                .kerning(0.8)
+                .padding(.bottom, 7)
+            PremiumCard {
+                VStack(alignment: .leading, spacing: 12) { content }
+            }
+        }
+    }
+}
+
+// MARK: - Diff bar
+
+private struct DiffBar: View {
+    @ObservedObject var model: SettingsModel
+
+    var body: some View {
+        if model.hasUnsavedChanges || model.saveError != nil {
+            VStack(spacing: 10) {
+                if let error = model.saveError {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 11, weight: .bold))
+                        Text(error).font(.system(size: 11.5)).lineLimit(3)
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(.red)
+                    .padding(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10).fill(Color.red.opacity(0.08))
+                            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.red.opacity(0.25), lineWidth: 1))
+                    )
+                }
+                HStack(spacing: 14) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(model.changes) { change in
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(change.keyPath).font(.system(size: 9.5, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
+                                    Text("\(change.oldValueToml ?? "—") → \(change.newValueToml)")
+                                        .font(.system(size: 11, design: .monospaced)).lineLimit(1)
+                                }
+                                .padding(.horizontal, 8).padding(.vertical, 5)
+                                .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.09)))
+                            }
+                        }
+                    }
+                    Button("Discard") { model.discard() }
+                        .buttonStyle(.plain).foregroundStyle(.secondary)
+                        .accessibilityLabel("Discard changes")
+                    Button { Task { await model.save() } } label: {
+                        Text(model.busy ? "Saving…" : "Save")
+                            .font(.system(size: 12.5, weight: .bold))
+                            .padding(.horizontal, 16).padding(.vertical, 7)
+                            .background(Capsule().fill(Color(nsColor: .controlAccentColor)))
+                            .foregroundStyle(.white)
+                    }
+                    .buttonStyle(.plain)
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityLabel("Save changes")
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 14).fill(Color(nsColor: .controlBackgroundColor))
+                    .shadow(color: Color.black.opacity(0.15), radius: 14, y: 4)
+                    .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color(nsColor: .separatorColor).opacity(0.3), lineWidth: 1))
+            )
+            .padding(.horizontal, 16).padding(.bottom, 6)
+        }
+    }
+}
+
+// MARK: - Panels
+
+private struct GeneralPanel: View {
+    @ObservedObject var model: SettingsModel
+
+    var body: some View {
+        SettingsCards {
+            SettingsCard(label: "BEHAVIOR") {
+                Toggle("Start at login", isOn: model.binding(keyPath: "start-at-login", default: true))
+                Toggle("Auto-reload config on change", isOn: model.binding(keyPath: "auto-reload-config", default: true))
+                Toggle("Warn about shortcut conflicts", isOn: model.binding(keyPath: "warn-about-shortcut-conflicts", default: true))
+                Toggle("Show system mode overlay", isOn: model.binding(keyPath: "show-system-mode-overlay", default: true))
+                Toggle("Keep floating windows on top", isOn: model.binding(keyPath: "keep-floating-windows-on-top", default: true))
+                Toggle("Adopt native window resize", isOn: model.binding(keyPath: "adopt-native-window-resize", default: true))
+                Toggle("Mouse edge focus", isOn: model.binding(keyPath: "enable-mouse-edge-focus", default: true))
+            }
+        }
+    }
+}
+
+private struct GapsLayoutPanel: View {
+    @ObservedObject var model: SettingsModel
+
+    var body: some View {
+        SettingsCards {
+            SettingsCard(label: "TILING") {
+                gapSlider("Inner horizontal", "gaps.inner.horizontal")
+                gapSlider("Inner vertical", "gaps.inner.vertical")
+                gapSlider("Outer left", "gaps.outer.left")
+                gapSlider("Outer right", "gaps.outer.right")
+                gapSlider("Outer top", "gaps.outer.top")
+                gapSlider("Outer bottom", "gaps.outer.bottom")
+                Picker("Root layout", selection: model.stringBinding(keyPath: "default-root-container-layout", default: "scrolling")) {
                     Text("Scrolling").tag("scrolling")
                     Text("Tiles").tag("tiles")
                     Text("Accordion").tag("accordion")
                 }
-                Picker("Default orientation", selection: model.string("default-root-container-orientation", get: { $0.defaultRootContainerOrientation.rawValue })) {
-                    Text("Automatic").tag("auto")
+                Picker("Root orientation", selection: model.stringBinding(keyPath: "default-root-container-orientation", default: "horizontal")) {
                     Text("Horizontal").tag("horizontal")
                     Text("Vertical").tag("vertical")
                 }
-                IntegerSettingRow("Default column width", value: model.values.scrollingColumnWidth, range: 10...100, suffix: "%") { model.set(["scrolling-column-width"], String($0)) }
-                Text("Defaults apply to new containers. Column width applies continuously to scrolling windows without a manual size.").font(.caption).foregroundStyle(.secondary)
-                gap("Horizontal gap", ["gaps", "inner", "horizontal"], model.values.gaps.inner.horizontal)
-                gap("Vertical gap", ["gaps", "inner", "vertical"], model.values.gaps.inner.vertical)
-                gap("Left outer gap", ["gaps", "outer", "left"], model.values.gaps.outer.left)
-                gap("Right outer gap", ["gaps", "outer", "right"], model.values.gaps.outer.right)
-                gap("Top outer gap", ["gaps", "outer", "top"], model.values.gaps.outer.top)
-                gap("Bottom outer gap", ["gaps", "outer", "bottom"], model.values.gaps.outer.bottom)
+                Stepper("Scrolling column width: \(model.intValue(path: "scrolling-column-width") ?? 49)",
+                        value: model.intBinding(keyPath: "scrolling-column-width", default: 49), in: 10...200)
+                Stepper("Accordion padding: \(model.intValue(path: "accordion-padding") ?? 20)",
+                        value: model.intBinding(keyPath: "accordion-padding", default: 20), in: 0...200)
             }
-            Section("Mouse") {
-                Picker("Move / resize modifier", selection: model.string("mouse-modifier", get: { $0.mouseModifier.rawValue })) {
-                    Text("Off").tag("none")
-                    Text("Option").tag("alt")
-                    Text("Control").tag("ctrl")
-                    Text("Command").tag("cmd")
-                }
-                Toggle("Adopt native window resizing", isOn: model.bool("adopt-native-window-resize", \.adoptNativeWindowResize))
-                Toggle("Focus windows at the screen edge", isOn: model.bool("enable-mouse-edge-focus", \.enableMouseEdgeFocus))
-            }
-            Section("Floating Windows") {
-                Toggle("Keep floating windows above tiled windows", isOn: model.bool("keep-floating-windows-on-top", \.keepFloatingWindowsOnTop))
-            }
-            Section("Startup & Configuration") {
-                Toggle("Start at login", isOn: model.bool("start-at-login", \.startAtLogin))
-                Toggle("Reload configuration when the file changes", isOn: model.bool("auto-reload-config", \.autoReloadConfig))
-                Text("Advanced options, callbacks, per-display gaps and shortcut bindings are available in Open Configuration.").font(.caption).foregroundStyle(.secondary)
-            }
-        }.formStyle(.grouped)
-    }
-
-    @ViewBuilder private func gap(_ label: String, _ path: [String], _ value: DynamicConfigValue<Int>) -> some View {
-        switch value {
-            case .constant(let number):
-                IntegerSettingRow(label, value: number, range: 0...1000, suffix: "pt") { model.set(path, String($0)) }
-            case .perMonitor:
-                HStack {
-                    Text(label)
-                    Spacer()
-                    Button("Per-display rules…") { model.openConfiguration() }
-                }
         }
     }
 
-    private var appWidths: some View {
-        Form {
-            Section("Save Current Width") {
-                if let target = model.target {
-                    LabeledContent(target.appName, value: "\(target.percentage)%")
-                    Text(target.bundleId).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-                    Button("Save Width for \(target.appName)") {
-                        model.perform {
-                            let warnings = try await target.save()
-                            return warnings.isEmpty ? "Saved \(target.appName) at \(target.percentage)%." : warnings
+    private func gapSlider(_ label: String, _ path: String) -> some View {
+        HStack {
+            Slider(value: Binding(
+                get: { Double(model.intValue(path: path) ?? 10) },
+                set: { model.edit(path, toToml: TomlValue.format(int: Int($0.rounded()))) }
+            ), in: 0...60, step: 1)
+            Text("\(model.intValue(path: path) ?? 10)")
+                .monospacedDigit().foregroundStyle(.secondary).frame(width: 28, alignment: .trailing)
+        }
+        .labeledStyle(label)
+    }
+}
+
+private struct KeybindingsPanel: View {
+    @ObservedObject var model: SettingsModel
+    @State private var newProfileName = ""
+    @State private var isSavingProfile = false
+    @State private var profileMessage: String?
+
+    var body: some View {
+        let analysis = ShortcutConflictAnalysis(configText: model.draftText, system: .live())
+        let profiles = model.profileStore.list()
+        SettingsCards {
+            SettingsCard(label: "PROFILES") {
+                if profiles.isEmpty {
+                    Text("No saved profiles yet. Edit bindings below, then save them as a profile.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(profiles, id: \.self) { name in
+                    HStack {
+                        Text(name)
+                        Spacer()
+                        Button("Load") { try? model.loadProfile(name: name); profileMessage = "Loaded '\(name)' into the draft — Save to apply." }
+                        Button("Delete", role: .destructive) { try? model.profileStore.delete(name); profileMessage = nil }
+                    }
+                }
+                if isSavingProfile {
+                    HStack {
+                        TextField("Profile name", text: $newProfileName).onSubmit(saveProfile)
+                        Button("Save", action: saveProfile)
+                    }
+                } else {
+                    Button("Save current bindings as profile…") { isSavingProfile = true }
+                }
+                if let profileMessage { Text(profileMessage).font(.caption).foregroundStyle(.secondary) }
+            }
+            SettingsCard(label: "BINDINGS") {
+                ForEach(model.availableModes, id: \.self) { mode in
+                    ModeEditor(mode: mode, model: model)
+                }
+            }
+            SettingsCard(label: "CONFLICTS") {
+                let rows = analysis.conflictRows()
+                if rows.isEmpty {
+                    Text("No conflicts detected.").foregroundStyle(.secondary)
+                }
+                ForEach(rows) { row in
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack {
+                            KeycapView(chord: row.chord, prominent: true)
+                            Spacer()
+                            Text("mode.\(row.mode)").font(.caption).foregroundStyle(.secondary)
                         }
+                        Text(row.explanation).font(.caption).foregroundStyle(color(row.severity))
                     }
-                } else if let issue = model.targetIssue {
-                    Text(issue).foregroundStyle(.secondary)
+                    .padding(.vertical, 2)
                 }
-                Text("Uses the window focused before Settings opened: its logical scrolling width, allocated tile width, or floating width relative to the display. Saving clears only this window’s manual scrolling override.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
-            Section("App Defaults") {
-                if model.values.appWindowWidths.isEmpty {
-                    Text("No app defaults saved. Apps use the default column width.").foregroundStyle(.secondary)
-                } else {
-                    Picker("Saved app", selection: $selectedBundle) {
-                        Text("Choose an app").tag("")
-                        ForEach(model.values.appWindowWidths.keys.sorted(), id: \.self) { id in Text(id).tag(id) }
-                    }.onChange(of: selectedBundle) { id in
-                        guard let width = model.values.appWindowWidths[id] else { return }
-                        bundleId = id
-                        appPercentage = width
-                    }
-                }
-                TextField("Bundle ID", text: $bundleId, prompt: Text("com.example.App"))
-                Stepper("Preferred width: \(appPercentage)%", value: $appPercentage, in: 1...100)
-                HStack {
-                    Button(model.values.appWindowWidths[bundleId] == nil ? "Add Default" : "Update Default") {
-                        model.set(["app-window-widths", bundleId], String(appPercentage))
-                    }.disabled(bundleId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    Button("Remove Default") {
-                        model.set(["app-window-widths", bundleId], nil)
-                        selectedBundle = ""
-                    }.disabled(model.values.appWindowWidths[bundleId] == nil)
-                }
-                Text("Percentages are relative to each scrolling container. App defaults apply on every layout unless a window was manually resized. Balance sizes returns those windows to their app defaults.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-        }.formStyle(.grouped)
-    }
-
-    private var shortcuts: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Toggle("Check for shortcut registration conflicts", isOn: model.bool("warn-about-shortcut-conflicts", \.warnAboutShortcutConflicts))
-                HStack {
-                    Button(conflicts.isChecking ? "Checking…" : "Recheck") {
-                        model.perform { await conflicts.recheck(); return conflicts.checkStatus ?? "Shortcut check complete." }
-                    }.disabled(conflicts.isChecking)
-                    Button("Keyboard Settings…") {
-                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension").orDie())
-                    }
-                }
-                if let status = conflicts.checkStatus { Text(status).foregroundStyle(.secondary) }
-                if let date = conflicts.lastChecked { Text("Checked \(date.formatted(date: .omitted, time: .standard))").font(.caption).foregroundStyle(.secondary) }
-                let actual = conflicts.conflicts.filter { !$0.advisory }
-                if actual.isEmpty {
-                    Text(conflicts.lastChecked == nil ? "Recheck to inspect active-mode registrations." : "No registration conflicts in the active mode.").foregroundStyle(.secondary)
-                } else {
-                    Text("Registration Conflicts").font(.headline)
-                    Text("These shortcuts could not be registered and are inactive.").font(.caption).foregroundStyle(.secondary)
-                    ForEach(actual) { conflict in conflictRow(conflict) }
-                }
-                let suggestions = conflicts.conflicts.filter(\.advisory)
-                if !suggestions.isEmpty {
-                    Divider()
-                    Text("App Shortcut Suggestions").font(.headline)
-                    Text("Informational only. Similar shortcuts are not registration conflicts; these bindings remain active.").font(.caption).foregroundStyle(.secondary)
-                    ForEach(suggestions) { conflict in conflictRow(conflict) }
-                }
-                Divider()
-                Text("Current Bindings").font(.headline)
-                Text(currentShortcutsDescription(model.values)).textSelection(.enabled).font(.system(.body, design: .monospaced)).frame(maxWidth: .infinity, alignment: .leading)
-            }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private func conflictRow(_ conflict: ShortcutConflict) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text("\(conflict.mode): \(conflict.binding)").fontWeight(.medium)
-            Text(conflict.reason).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+    private func saveProfile() {
+        let name = newProfileName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        do {
+            try model.saveProfile(name: name)
+            newProfileName = ""
+            isSavingProfile = false
+            profileMessage = "Saved profile '\(name)'."
+        } catch { profileMessage = "Can't save profile: \(error)" }
+    }
+
+    private func color(_ severity: ConflictSeverity) -> Color {
+        switch severity {
+            case .dead, .reserved: .red
+            case .dormant: .orange
+            case .textEditing: .secondary
         }
     }
 }
 
-private struct IntegerSettingRow: View {
-    let title: String
-    let value: Int
-    let range: ClosedRange<Int>
-    let suffix: String
-    let save: (Int) -> Void
-    @State private var draft: String
+private struct ModeEditor: View {
+    let mode: String
+    @ObservedObject var model: SettingsModel
+    @State private var newChord = ""
+    @State private var newCommand = ""
 
-    init(_ title: String, value: Int, range: ClosedRange<Int>, suffix: String, save: @escaping (Int) -> Void) {
-        self.title = title
-        self.value = value
-        self.range = range
-        self.suffix = suffix
-        self.save = save
-        _draft = State(initialValue: String(value))
+    var body: some View {
+        DisclosureGroup("mode.\(mode)\(model.modeEdits[mode] != nil ? " •" : "")") {
+            ForEach(model.bindingRows(mode: mode)) { row in
+                BindingRowView(mode: mode, row: row, model: model)
+            }
+            .onDelete { offsets in
+                var updated = model.bindingRows(mode: mode)
+                updated.remove(atOffsets: offsets)
+                model.setModeRows(updated, for: mode)
+            }
+            HStack {
+                TextField("chord, e.g. alt-h", text: $newChord).frame(width: 150)
+                TextField("command, e.g. focus left", text: $newCommand)
+                Button("Add") {
+                    let chord = newChord.trimmingCharacters(in: .whitespaces)
+                    let command = newCommand.trimmingCharacters(in: .whitespaces)
+                    guard !chord.isEmpty, !command.isEmpty else { return }
+                    var updated = model.bindingRows(mode: mode)
+                    updated.removeAll { $0.chord == chord }
+                    updated.append(BindingRow(mode: mode, chord: chord, commandToml: TomlValue.format(string: command)))
+                    model.setModeRows(updated, for: mode)
+                    newChord = ""; newCommand = ""
+                }
+            }
+            if model.modeEdits[mode] != nil {
+                Button("Revert mode.\(mode) to file") { model.revertMode(mode: mode) }
+            }
+        }
     }
+}
 
-    private var number: Int? { Int(draft).flatMap { range.contains($0) ? $0 : nil } }
+private struct BindingRowView: View {
+    let mode: String
+    let row: BindingRow
+    let model: SettingsModel
 
     var body: some View {
         HStack {
-            Text(title)
-            Spacer()
-            TextField(title, text: $draft).labelsHidden().multilineTextAlignment(.trailing).frame(width: 55)
-                .onSubmit { if let number, number != value { save(number) } }
-                .onChange(of: value) { draft = String($0) }
-                .help("\(range.lowerBound)–\(range.upperBound) \(suffix)")
-            Text(suffix).foregroundStyle(.secondary).frame(width: 20, alignment: .leading)
-            Button("Apply") { if let number { save(number) } }.disabled(number == nil || number == value)
+            KeycapView(chord: row.chord).frame(width: 150, alignment: .leading)
+            TextField("command", text: Binding(
+                get: { row.commandToml.trimmingCharacters(in: CharacterSet(charactersIn: "'\"")) },
+                set: { updated in
+                    var rows = model.bindingRows(mode: mode)
+                    if let i = rows.firstIndex(where: { $0.chord == row.chord }) {
+                        rows[i].commandToml = TomlValue.format(string: updated)
+                        model.setModeRows(rows, for: mode)
+                    }
+                }
+            ))
+            .font(.system(.caption, design: .monospaced))
         }
     }
 }
+
+private struct OverlaysPanel: View {
+    @ObservedObject var model: SettingsModel
+
+    var body: some View {
+        SettingsCards {
+            SettingsCard(label: "FOCUS RING") {
+                Toggle("Focus ring around focused window", isOn: model.binding(keyPath: "borders.enabled", default: false))
+                Stepper("Ring width: \(model.intValue(path: "borders.width") ?? 4)",
+                        value: model.intBinding(keyPath: "borders.width", default: 4), in: 1...16)
+                Picker("Ring color", selection: model.stringBinding(keyPath: "borders.color", default: "auto")) {
+                    Text("Accent (auto)").tag("auto")
+                    Text("Palette").tag("palette")
+                    Text("Blue").tag("blue")
+                    Text("Red").tag("red")
+                    Text("Green").tag("green")
+                    Text("Yellow").tag("yellow")
+                    Text("Cyan").tag("cyan")
+                    Text("Magenta").tag("magenta")
+                    Text("White").tag("white")
+                }
+            }
+            SettingsCard(label: "WORKSPACE BAR") {
+                Toggle("Workspace bar", isOn: barBinding)
+                if model.boolValue(path: "bar.enabled") == true {
+                    Stepper("Bar height: \(model.intValue(path: "bar.height") ?? 28)",
+                            value: model.intBinding(keyPath: "bar.height", default: 28), in: 20...48)
+                    Toggle("Show only where the menu bar auto-hides",
+                           isOn: model.binding(keyPath: "bar.only-with-hidden-menu-bar", default: false))
+                    Toggle("Step aside while the menu bar is revealed",
+                           isOn: model.binding(keyPath: "bar.hide-with-menu-bar", default: true))
+                }
+            }
+            SettingsCard(label: "PALETTE") {
+                Picker("Palette", selection: model.stringBinding(keyPath: "palette.name", default: "default")) {
+                    Text("Default (accent)").tag("default")
+                    Text("Nord").tag("nord")
+                    Text("Dracula").tag("dracula")
+                    Text("Solarized Dark").tag("solarized-dark")
+                    Text("Gruvbox Dark").tag("gruvbox-dark")
+                }
+            }
+        }
+    }
+
+    private var barBinding: Binding<Bool> {
+        Binding(
+            get: { model.boolValue(path: "bar.enabled") ?? false },
+            set: { enabled in
+                model.edit("bar.enabled", toToml: TomlValue.format(bool: enabled))
+                if enabled {
+                    let h = model.intValue(path: "bar.height") ?? 28
+                    let carve = h + 6
+                    if (model.intValue(path: "gaps.outer.top") ?? 0) < carve {
+                        model.edit("gaps.outer.top", toToml: TomlValue.format(int: carve))
+                    }
+                }
+            }
+        )
+    }
+}
+
+private struct AboutPanel: View {
+    @ObservedObject var model: SettingsModel
+
+    var body: some View {
+        SettingsCards {
+            SettingsCard(label: "SYSTEM") {
+                KeyValueRow(key: "Version", value: "\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] ?? "?") (\(gitShortHash))")
+                KeyValueRow(key: "Config file", value: model.configUrl?.path ?? "—")
+                KeyValueRow(key: "Profiles", value: "\(model.profileStore.list().count) saved")
+            }
+        }
+    }
+}
+
+// MARK: - Shared
+
+struct SettingsCards<Content: View>: View {
+    @ViewBuilder var sections: Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) { sections }
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct KeyValueRow: View {
+    let key: String
+    let value: String
+    var body: some View {
+        HStack {
+            Text(key).foregroundStyle(.secondary)
+            Spacer()
+            Text(value).font(.system(.caption, design: .monospaced)).lineLimit(1).truncationMode(.middle)
+        }
+    }
+}
+
+extension View {
+    func labeledStyle(_ label: String) -> some View {
+        HStack { Text(label); Spacer() ; self }
+    }
+}
+
 
 @MainActor
 func showSettingsError(_ error: Error) {
