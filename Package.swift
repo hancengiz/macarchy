@@ -73,10 +73,32 @@ let package = Package(
             ],
             swiftSettings: swiftSettings,
         ),
+        .target(
+            name: "MacarchySettingsCore",
+            dependencies: [
+                .target(name: "Common"),
+                .product(name: "TOMLDecoder", package: "TOMLDecoder"),
+            ],
+            swiftSettings: swiftSettings,
+        ),
+        .executableTarget(
+            name: "MacarchySettings",
+            dependencies: [
+                .target(name: "MacarchySettingsCore"),
+            ],
+            swiftSettings: swiftSettings,
+        ),
         .testTarget(
             name: "AppBundleTests",
             dependencies: [
                 .target(name: "AppBundle"),
+            ],
+            swiftSettings: swiftSettings,
+        ),
+        .testTarget(
+            name: "MacarchySettingsTests",
+            dependencies: [
+                .target(name: "MacarchySettingsCore"),
             ],
             swiftSettings: swiftSettings,
         ),
