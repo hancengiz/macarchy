@@ -46,7 +46,7 @@ jobs:
         run: |
           args=(--build-only)
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            args+=(--build-version "${GITHUB_REF_NAME#v}")
+            args+=(--build-version "${GITHUB_REF_NAME#v}" --release)
           fi
           python3 macarchy/install.py "${args[@]}"
 
@@ -61,6 +61,21 @@ jobs:
           .local/macarchy.app/Contents/Helpers/macarchy --help
           codesign --verify --deep --strict .local/macarchy.app
 
+      - name: Generate appcast (tag releases)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -eu
+          curl -sL -o /tmp/sparkle.tar.xz https://github.com/sparkle-project/Sparkle/releases/download/2.7.3/Sparkle-2.7.3.tar.xz
+          mkdir -p /tmp/sparkle-dist && tar xf /tmp/sparkle.tar.xz -C /tmp/sparkle-dist
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > /tmp/sparkle.privkey
+          /tmp/sparkle-dist/bin/generate_appcast \
+            --ed-key-file /tmp/sparkle.privkey \
+            --download-url-prefix "https://github.com/hancengiz/macarchy/releases/download/${GITHUB_REF_NAME}/" \
+            .local/
+          test -f .local/appcast.xml
+
       - name: Archive release app
         run: ditto -c -k --keepParent .local/macarchy.app macarchy.app.zip
 
@@ -74,7 +89,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: macarchy.app.zip
+          files: |
+            macarchy.app.zip
+            .local/appcast.xml
           name: macarchy ${{ github.ref_name }}
           body: |
             Apple Silicon (arm64), macOS 13 or newer.

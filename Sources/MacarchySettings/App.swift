@@ -416,6 +416,14 @@ struct OverlaysPanel: View {
                 )
                 Text("Windows are moved out from under the bar by raising the outer top gap to the bar height.")
                     .font(.caption).foregroundStyle(.secondary)
+                Toggle(
+                    "Show only where the menu bar auto-hides",
+                    isOn: model.binding(path: "bar.only-with-hidden-menu-bar", default: false)
+                )
+                Toggle(
+                    "Step aside while the menu bar is revealed",
+                    isOn: model.binding(path: "bar.hide-with-menu-bar", default: true)
+                )
             }
             Divider()
             Picker("Palette", selection: model.binding(path: "palette.name", default: "default")) {

@@ -152,6 +152,12 @@ final class TrayStatusItem: NSObject, NSMenuDelegate {
         })
 
         items.append(.separator())
+        items.append(action("Check for Updates…") {
+            Task { @MainActor in
+                updaterController.checkForUpdates(nil)
+            }
+        })
+        items.append(.separator())
         items.append(action("Quit \(appName)", key: "q") {
             Task.startUnstructured {
                 terminationHandler?.beforeTermination()

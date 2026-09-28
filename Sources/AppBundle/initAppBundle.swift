@@ -1,6 +1,16 @@
 import AppKit
 import Common
 import Foundation
+import Sparkle
+
+/// Sparkle auto-updater. Keys come from Info.plist (SUFeedURL/SUPublicEDKey);
+/// personal builds strip them so they never self-update over the release channel.
+@MainActor
+let updaterController = SPUStandardUpdaterController(
+    startingUpdater: true,
+    updaterDelegate: nil,
+    userDriverDelegate: nil,
+)
 
 @MainActor public func initAppBundle() {
     Task.startUnstructured {

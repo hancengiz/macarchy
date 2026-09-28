@@ -9,12 +9,15 @@ struct BarConfig: ConvenienceMutable, Equatable, Sendable {
     /// With an auto-hiding menu bar: dock to the very top, and get out of
     /// the way while the pointer is in the menu bar reveal band.
     var hideWithMenuBar: Bool = true
+    /// Only show the bar on displays whose menu bar auto-hides.
+    var onlyWithHiddenMenuBar: Bool = false
 }
 
 private let barParser: [String: any ParserProtocol<BarConfig>] = [
     "enabled": Parser(\.enabled, parseBool),
     "height": Parser(\.height, parseInt),
     "hide-with-menu-bar": Parser(\.hideWithMenuBar, parseBool),
+    "only-with-hidden-menu-bar": Parser(\.onlyWithHiddenMenuBar, parseBool),
 ]
 
 func parseBar(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> BarConfig {
@@ -88,6 +91,10 @@ func barYTop(screenFrame: CGRect, visibleFrame: CGRect) -> CGFloat {
     visibleFrame.maxY >= screenFrame.maxY - 0.5 ? screenFrame.maxY : visibleFrame.maxY
 }
 
+/// True when the display's menu bar auto-hides (visibleFrame reaches the screen top).
+func menuBarAutoHidden(screenFrame: CGRect, visibleFrame: CGRect) -> Bool {
+    visibleFrame.maxY >= screenFrame.maxY - 0.5
+}
 /// True while the pointer sits in the menu bar (or its reveal) band.
 func barHiddenForMenuBar(mouseY: CGFloat, screenFrame: CGRect, visibleFrame: CGRect) -> Bool {
     let band = max(screenFrame.maxY - visibleFrame.maxY, 28)
@@ -182,6 +189,11 @@ final class BarStripPanel: NSPanelHud {
         lastHeight = height
         screenFrame = screen.frame
         visibleFrame = screen.visibleFrame
+        if config.bar.onlyWithHiddenMenuBar, !menuBarAutoHidden(screenFrame: screenFrame, visibleFrame: visibleFrame) {
+            orderOut(nil)
+            screenFrame = .zero // keep the mouse-hide logic away from a hidden panel
+            return
+        }
         let view = BarStripView(cells: cells)
         if let hosting = hostingView {
             hosting.rootView = view

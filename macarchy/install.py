@@ -93,7 +93,7 @@ def hotkeys(text):
     return "\n".join(lines) + "\n"
 
 
-def build_app(build_version=DEFAULT_BUILD_VERSION, identity_override=None):
+def build_app(build_version=DEFAULT_BUILD_VERSION, identity_override=None, release=False):
     bash = shutil.which("bash", path="/opt/homebrew/bin:/usr/local/bin")
     if not bash:
         raise SystemExit("Install Bash 5 first: brew install bash")
@@ -108,6 +108,14 @@ def build_app(build_version=DEFAULT_BUILD_VERSION, identity_override=None):
     shutil.copy2(bin_dir / "MacarchyApp", contents / "MacOS" / "macarchy")
     # Both SPM products would collide with the helper name if copied verbatim.
     shutil.copy2(bin_dir / "macarchy", contents / "Helpers" / "macarchy")
+    # Sparkle: embed the universal framework next to the executable.
+    sparkle = next(ROOT.glob(".build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-*/*Sparkle.framework"), None)
+    if sparkle:
+        (contents / "Frameworks").mkdir(exist_ok=True)
+        shutil.rmtree(contents / "Frameworks" / "Sparkle.framework", ignore_errors=True)
+        shutil.copytree(sparkle, contents / "Frameworks" / "Sparkle.framework", symlinks=True)
+        run("install_name_tool", "-add_rpath", "@executable_path/../Frameworks",
+            str(contents / "MacOS" / "macarchy"))
     shutil.copy2(ROOT / "docs/config-examples/default-config.toml", contents / "Resources" / "default-config.toml")
     shutil.copy2(ROOT / "resources/Assets.xcassets/AppIcon.appiconset/icon.png", contents / "Resources" / "AppIcon.png")
     for resource in bin_dir.glob("*.bundle"):
@@ -119,7 +127,14 @@ def build_app(build_version=DEFAULT_BUILD_VERSION, identity_override=None):
         "CFBundleVersion": build_version.split("-", 1)[0],
         "LSMinimumSystemVersion": "13.0", "LSUIElement": True,
         "NSAppleEventsUsageDescription": "Launch applications from your configured shortcuts.",
+        # Sparkle auto-update. Personal builds strip these below (never
+        # self-update over the release channel); --release keeps them.
+        "SUFeedURL": "https://github.com/hancengiz/macarchy/releases/latest/download/appcast.xml",
+        "SUPublicEDKey": "5Xc+JVRK8w65UUPCuSMc9dcLpPapOe3b+UxnIPYb5qA=",
     }
+    if not release:
+        info.pop("SUFeedURL", None)
+        info.pop("SUPublicEDKey", None)
     with (contents / "Info.plist").open("wb") as file:
         plistlib.dump(info, file)
     identity, source = discover_identity(identity_override)
@@ -165,7 +180,7 @@ def install_app(app, installed, backup):
     with tempfile.TemporaryDirectory(prefix=".macarchy-install-", dir=installed.parent) as directory:
         staging = Path(directory) / app.name
         previous = Path(directory) / "previous.app"
-        shutil.copytree(app, staging)
+        shutil.copytree(app, staging, symlinks=True)
         run("codesign", "--verify", "--deep", "--strict", str(staging))
         if installed.exists():
             shutil.copytree(installed, backup / app.name)
@@ -210,6 +225,11 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--restore", type=Path, help="Restore a backup directory printed during installation")
     parser.add_argument(
+        "--release",
+        action="store_true",
+        help="keep Sparkle updater keys (CI release builds); personal builds strip them",
+    )
+    parser.add_argument(
         "--identity",
         help="codesigning identity to use ('-' for ad-hoc); default: discover from the keychain",
     )
@@ -245,7 +265,7 @@ def main():
         else:
             print(text)
         return
-    app = build_app(args.build_version, args.identity) if args.build or args.build_only else None
+    app = build_app(args.build_version, args.identity, release=args.release) if args.build or args.build_only else None
     if args.build_only:
         return
     if args.profile_only and not (home / "Applications/macarchy.app/Contents/Helpers/macarchy").is_file():
