@@ -6,11 +6,15 @@ struct BarConfig: ConvenienceMutable, Equatable, Sendable {
     var enabled: Bool = false
     /// Strip height in points.
     var height: Int = 28
+    /// With an auto-hiding menu bar: dock to the very top, and get out of
+    /// the way while the pointer is in the menu bar reveal band.
+    var hideWithMenuBar: Bool = true
 }
 
 private let barParser: [String: any ParserProtocol<BarConfig>] = [
     "enabled": Parser(\.enabled, parseBool),
     "height": Parser(\.height, parseInt),
+    "hide-with-menu-bar": Parser(\.hideWithMenuBar, parseBool),
 ]
 
 func parseBar(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> BarConfig {
@@ -76,6 +80,20 @@ private func barCellState(workspace: BarWorkspace, activeOnMonitor: String, focu
     return .hidden
 }
 
+// MARK: Menu-bar-aware placement (pure)
+
+/// Top edge (AppKit y) the bar should occupy: the very top on auto-hide
+/// menu bar screens, just below the menu bar otherwise.
+func barYTop(screenFrame: CGRect, visibleFrame: CGRect) -> CGFloat {
+    visibleFrame.maxY >= screenFrame.maxY - 0.5 ? screenFrame.maxY : visibleFrame.maxY
+}
+
+/// True while the pointer sits in the menu bar (or its reveal) band.
+func barHiddenForMenuBar(mouseY: CGFloat, screenFrame: CGRect, visibleFrame: CGRect) -> Bool {
+    let band = max(screenFrame.maxY - visibleFrame.maxY, 28)
+    return mouseY >= screenFrame.maxY - band
+}
+
 // MARK: Panels
 
 @MainActor
@@ -87,7 +105,22 @@ func refreshBar() {
 final class BarPanels {
     static let shared = BarPanels()
     private var panels: [Int: BarStripPanel] = [:]
+    private var mouseMonitor: Any?
 
+    init() {
+        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.syncMenuBarHiding()
+            }
+        }
+    }
+
+    private func syncMenuBarHiding() {
+        let mouseY = NSEvent.mouseLocation.y
+        for panel in panels.values {
+            panel.syncMenuBarHiding(mouseY: mouseY)
+        }
+    }
     func refresh() {
         guard config.bar.enabled else {
             panels.values.forEach { $0.orderOut(nil) }
@@ -123,6 +156,11 @@ final class BarPanels {
 final class BarStripPanel: NSPanelHud {
     let monitorId: Int
     private var hostingView: NSHostingView<BarStripView>?
+    private var lastCells: [BarCell] = []
+    private var lastHeight: Int = 28
+    private var screenFrame: CGRect = .zero
+    private var visibleFrame: CGRect = .zero
+    private var hiddenForMenuBar = false
 
     init(monitorId: Int) {
         self.monitorId = monitorId
@@ -135,10 +173,15 @@ final class BarStripPanel: NSPanelHud {
     override var canBecomeMain: Bool { false }
 
     func update(cells: [BarCell], height: Int, monitorId: Int) {
-        guard let monitor = sortedMonitorInfos.first(where: { $0.monitorAppKitNsScreenScreensId == monitorId }) else {
+        // monitorAppKitNsScreenScreensId is the 1-based index into NSScreen.screens.
+        guard let screen = monitorId >= 1 ? NSScreen.screens.dropFirst(monitorId - 1).first : nil else {
             orderOut(nil)
             return
         }
+        lastCells = cells
+        lastHeight = height
+        screenFrame = screen.frame
+        visibleFrame = screen.visibleFrame
         let view = BarStripView(cells: cells)
         if let hosting = hostingView {
             hosting.rootView = view
@@ -147,14 +190,33 @@ final class BarStripPanel: NSPanelHud {
             contentView = hosting
             self.hostingView = hosting
         }
+        applyFrame(height: height)
+        if !hiddenForMenuBar {
+            orderFrontRegardless()
+        }
+    }
+
+    private func applyFrame(height: Int) {
         let h = CGFloat(height)
-        let rect = monitor.rect
-        // AeroSpace rect (y-down from main top) → AppKit bottom-left; strip at monitor top.
+        let yTop = barYTop(screenFrame: screenFrame, visibleFrame: visibleFrame)
         setFrame(
-            NSRect(x: rect.topLeftX, y: mainMonitorInfo.height - rect.topLeftY - h, width: rect.width, height: h),
+            NSRect(x: screenFrame.minX, y: yTop - h, width: screenFrame.width, height: h),
             display: true,
         )
-        orderFrontRegardless()
+    }
+
+    /// Hide while the pointer is in the menu bar band (menu bar revealed), return after.
+    func syncMenuBarHiding(mouseY: CGFloat) {
+        guard config.bar.hideWithMenuBar, screenFrame != .zero else { return }
+        let shouldHide = barHiddenForMenuBar(mouseY: mouseY, screenFrame: screenFrame, visibleFrame: visibleFrame)
+        guard shouldHide != hiddenForMenuBar else { return }
+        hiddenForMenuBar = shouldHide
+        if shouldHide {
+            orderOut(nil)
+        } else {
+            applyFrame(height: lastHeight)
+            orderFrontRegardless()
+        }
     }
 }
 

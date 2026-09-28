@@ -18,6 +18,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case appearance = "Appearance"
     case gapsAndLayout = "Gaps & Layout"
     case keybindings = "Keybindings"
+    case overlays = "Overlays"
     case permissions = "Permissions"
     case about = "About"
     var id: String { rawValue }
@@ -27,6 +28,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             case .appearance: "paintbrush"
             case .gapsAndLayout: "rectangle.split.3x1"
             case .keybindings: "keyboard"
+            case .overlays: "square.on.square.dashed"
             case .permissions: "hand.raised"
             case .about: "info.circle"
         }
@@ -50,6 +52,7 @@ struct MainSplitView: View {
                 case .appearance: AppearancePanel(model: model)
                 case .gapsAndLayout: GapsLayoutPanel(model: model)
                 case .keybindings: KeybindingsPanel(model: model)
+                case .overlays: OverlaysPanel(model: model)
                 case .permissions: PermissionsPanel()
                 case .about: AboutPanel(model: model)
             }
@@ -276,6 +279,68 @@ struct PermissionsPanel: View {
             }
         }
         .task { await permission.refresh() }
+    }
+}
+
+// MARK: Overlays (borders / bar / palette)
+
+struct OverlaysPanel: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        SettingsForm("Overlays") {
+            Toggle("Focus ring around focused window", isOn: model.binding(path: "borders.enabled", default: false))
+            Stepper(
+                "Ring width: \(model.intValue(path: "borders.width") ?? 4)",
+                value: model.intBinding(path: "borders.width", default: 4), in: 1...16
+            )
+            Picker("Ring color", selection: model.binding(path: "borders.color", default: "auto")) {
+                Text("Accent (auto)").tag("auto")
+                Text("Palette").tag("palette")
+                Text("Blue").tag("blue")
+                Text("Red").tag("red")
+                Text("Green").tag("green")
+                Text("Yellow").tag("yellow")
+                Text("Cyan").tag("cyan")
+                Text("Magenta").tag("magenta")
+                Text("White").tag("white")
+            }
+            Divider()
+            Toggle("Workspace bar", isOn: barBinding)
+            if model.boolValue(path: "bar.enabled") == true {
+                Stepper(
+                    "Bar height: \(model.intValue(path: "bar.height") ?? 28)",
+                    value: model.intBinding(path: "bar.height", default: 28), in: 20...48
+                )
+                Text("Windows are moved out from under the bar by raising the outer top gap to the bar height.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Divider()
+            Picker("Palette", selection: model.binding(path: "palette.name", default: "default")) {
+                Text("Default (accent)").tag("default")
+                Text("Nord").tag("nord")
+                Text("Dracula").tag("dracula")
+                Text("Solarized Dark").tag("solarized-dark")
+                Text("Gruvbox Dark").tag("gruvbox-dark")
+            }
+        }
+    }
+
+    /// Enabling the bar also carves space: outer top gap raised to bar height + margin.
+    private var barBinding: Binding<Bool> {
+        Binding(
+            get: { model.boolValue(path: "bar.enabled") ?? false },
+            set: { enabled in
+                model.edit("bar.enabled", toToml: TomlValue.format(bool: enabled))
+                if enabled {
+                    let barHeight = model.intValue(path: "bar.height") ?? 28
+                    let carve = barHeight + 6
+                    if (model.intValue(path: "gaps.outer.top") ?? 0) < carve {
+                        model.edit("gaps.outer.top", toToml: TomlValue.format(int: carve))
+                    }
+                }
+            }
+        )
     }
 }
 

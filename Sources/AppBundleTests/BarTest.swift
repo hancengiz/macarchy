@@ -10,6 +10,23 @@ final class BarTest: XCTestCase {
         assertEquals(parsed.errors, [])
         XCTAssertEqual(parsed.config.bar.enabled, false)
         XCTAssertEqual(parsed.config.bar.height, 28)
+        XCTAssertEqual(parsed.config.bar.hideWithMenuBar, true)
+    }
+
+    func testMenuBarAwarePlacementAndHiding() {
+        // Auto-hidden menu bar: visibleFrame reaches the screen top → bar at the very top.
+        let frame = CGRect(x: 0, y: 0, width: 3440, height: 1440)
+        let autoHidden = frame
+        XCTAssertEqual(barYTop(screenFrame: frame, visibleFrame: autoHidden), frame.maxY)
+        // Visible menu bar: bar sits below it.
+        let withMenuBar = CGRect(x: 0, y: 25, width: 3440, height: 1415)
+        XCTAssertEqual(barYTop(screenFrame: frame, visibleFrame: withMenuBar), withMenuBar.maxY)
+        // While the menu bar is revealed by the mouse, the bar hides.
+        XCTAssertTrue(barHiddenForMenuBar(mouseY: frame.maxY - 10, screenFrame: frame, visibleFrame: withMenuBar))
+        XCTAssertFalse(barHiddenForMenuBar(mouseY: frame.maxY - 200, screenFrame: frame, visibleFrame: withMenuBar))
+        // Auto-hidden screens: only hide while the pointer is inside the reveal band.
+        XCTAssertTrue(barHiddenForMenuBar(mouseY: frame.maxY - 5, screenFrame: frame, visibleFrame: autoHidden))
+        XCTAssertFalse(barHiddenForMenuBar(mouseY: frame.maxY - 60, screenFrame: frame, visibleFrame: autoHidden))
     }
 
     func testBarConfigParses() {
