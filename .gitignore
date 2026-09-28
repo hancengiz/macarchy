@@ -22,3 +22,6 @@
 # XCode User settings
 xcuserdata/
 xcshareddata/
+# Local session-level notes (donor/porting plans, not repo docs)
+/dev-docs/porting-from-kiwidesk.md
+/dev-docs/plans/
