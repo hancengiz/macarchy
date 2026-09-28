@@ -282,7 +282,8 @@ private func switchWorkspace(_ name: String) {
     Task.startUnstructured {
         try? await Task.sleep(for: .milliseconds(150))
         for _ in 0 ..< 3 {
-            let exit = try await runLightSession(.hotkeyBinding, .checkServerIsEnabledOrDie()) { () throws -> Int32ExitCode in
+            guard let sessionGuard = RunSessionGuard.isServerEnabled else { return } // paused server: ignore click
+            let exit = try await runLightSession(.hotkeyBinding, sessionGuard) { () throws -> Int32ExitCode in
                 switch parseCommand(["workspace", name]) {
                     case .cmd(let command):
                         return Int32ExitCode(rawValue: await command.run(.defaultEnv, CmdIoImpl.emptyStdinIgnoringOut).rawValue)

@@ -41,9 +41,37 @@ public struct TomlDocument {
             lines[index] = "\(path.joined(separator: ".")) = \(valueToml)"
             return true
         }
+        // Table form: setValue([bar, enabled]) may target `enabled` inside `[bar]`.
+        if path.count >= 2 {
+            let table = Self.normalizeKey(path.dropLast().joined(separator: "."))
+            let leaf = path.last!
+            let normalizedLeaf = Self.normalizeKey(leaf)
+            if let range = tableSectionRange(named: table) {
+                if let index = range.firstIndex(where: { keySideOrNil(ofLineAt: $0) == normalizedLeaf }) {
+                    lines[index] = "\(leaf) = \(valueToml)"
+                    return true
+                }
+                // Key missing but the table exists: append after its last non-blank row.
+                var insertAt = range.upperBound
+                while insertAt > range.lowerBound, lines[insertAt - 1].trimmingCharacters(in: .whitespaces).isEmpty {
+                    insertAt -= 1
+                }
+                lines.insert("\(leaf) = \(valueToml)", at: insertAt)
+                return true
+            }
+        }
         let insertAt = lines.firstIndex(where: Self.isTableHeader) ?? lines.count
         lines.insert("\(path.joined(separator: ".")) = \(valueToml)", at: insertAt)
         return true
+    }
+
+    /// Body range of a table whose header matches a dotted name (`[bar]`, `[gaps.inner]`).
+    private func tableSectionRange(named table: String) -> Range<Int>? {
+        let headers = tableHeaders()
+        guard let start = headers.firstIndex(where: { $0.name == table }) else { return nil }
+        let from = headers[start].index + 1
+        let to = headers.index(after: start) < headers.endIndex ? headers[headers.index(after: start)].index : lines.count
+        return from..<to
     }
 
     public func getValue(path: [String]) -> String? {

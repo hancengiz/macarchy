@@ -8,8 +8,6 @@ struct MacarchySettingsApp: App {
     var body: some Scene {
         WindowGroup("macarchy Settings") {
             MainSplitView(model: model)
-                .frame(minWidth: 720, minHeight: 460)
-                .task { await model.load() }
         }
     }
 }
@@ -39,26 +37,23 @@ struct MainSplitView: View {
     @ObservedObject var model: AppModel
     @State private var selection: SettingsSection = .appearance
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @Environment(\.colorScheme) private var colorScheme
+    private var theme: AppTheme { AppTheme.current(colorScheme) }
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            List(SettingsSection.allCases, selection: $selection) { section in
-                Label(section.rawValue, systemImage: section.icon)
-                    .tag(section)
-            }
-            .navigationSplitViewColumnWidth(190)
+            sidebar
+                .navigationSplitViewColumnWidth(215)
+                .background(theme.sidebar)
         } detail: {
-            switch selection {
-                case .appearance: AppearancePanel(model: model)
-                case .gapsAndLayout: GapsLayoutPanel(model: model)
-                case .keybindings: KeybindingsPanel(model: model)
-                case .overlays: OverlaysPanel(model: model)
-                case .permissions: PermissionsPanel()
-                case .about: AboutPanel(model: model)
-            }
+            detail
+                .background(theme.background)
         }
+        .environment(\.appTheme, theme)
         .safeAreaInset(edge: .bottom) { DiffBar(model: model) }
-        .navigationTitle("macarchy Settings")
+        .navigationTitle("")
+        .frame(minWidth: 820, minHeight: 560)
+        .task { await model.load() }
         .task {
             // First run: if the server isn't healthy, land on the walkthrough.
             let permission = PermissionStatusModel()
@@ -66,6 +61,68 @@ struct MainSplitView: View {
             if !permission.state.isGranted {
                 selection = .permissions
             }
+        }
+    }
+
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 30, height: 30)
+                    Image(systemName: "rectangle.split.3x1")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                Text("macarchy")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(theme.primaryText)
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
+
+            ForEach(SettingsSection.allCases) { section in
+                Button {
+                    selection = section
+                } label: {
+                    SidebarRow(section: section, isSelected: selection == section)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(section.rawValue)
+                .accessibilityAddTraits(selection == section ? .isSelected : [])
+            }
+            Spacer()
+            HStack {
+                Text("v\(MacarchySettingsCoreInfo.version)")
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(theme.secondaryText.opacity(0.6))
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 10)
+        }
+    }
+
+    private var detail: some View {
+        ScrollView {
+            Group {
+                switch selection {
+                    case .appearance: AppearancePanel(model: model)
+                    case .gapsAndLayout: GapsLayoutPanel(model: model)
+                    case .keybindings: KeybindingsPanel(model: model)
+                    case .overlays: OverlaysPanel(model: model)
+                    case .permissions: PermissionsPanel()
+                    case .about: AboutPanel(model: model)
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: 660, alignment: .leading)
         }
     }
 }
@@ -76,7 +133,8 @@ struct AppearancePanel: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        SettingsForm("Behavior") {
+        SettingsForm {
+        CardSection("BEHAVIOR") {
             if let problem = model.configLocationProblem {
                 Text(problem).foregroundStyle(.secondary)
             }
@@ -89,6 +147,7 @@ struct AppearancePanel: View {
             Toggle("Mouse edge focus", isOn: model.binding(path: "enable-mouse-edge-focus", default: true))
         }
     }
+    }
 }
 
 // MARK: Gaps & Layout
@@ -97,7 +156,8 @@ struct GapsLayoutPanel: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        SettingsForm("Gaps & Layout") {
+        SettingsForm {
+        CardSection("TILING") {
             gapSlider("Inner horizontal", "gaps.inner.horizontal")
             gapSlider("Inner vertical", "gaps.inner.vertical")
             gapSlider("Outer left", "gaps.outer.left")
@@ -123,6 +183,8 @@ struct GapsLayoutPanel: View {
             )
         }
     }
+    }
+
 
     private func gapSlider(_ label: String, _ path: String) -> some View {
         LabeledContent(label) {
@@ -155,7 +217,7 @@ struct KeybindingsPanel: View {
             if model.originalText.isEmpty {
                 Text(model.configLocationProblem ?? "No config loaded.").foregroundStyle(.secondary)
             } else {
-                Section("Profiles") {
+                CardSection("PROFILES") {
                     if profiles.isEmpty {
                         Text("No saved profiles yet. Edit bindings below, then save them as a profile.")
                             .font(.caption).foregroundStyle(.secondary)
@@ -187,12 +249,12 @@ struct KeybindingsPanel: View {
                         Text(profileMessage).font(.caption).foregroundStyle(.secondary)
                     }
                 }
-                Section("Bindings") {
+                CardSection("BINDINGS") {
                     ForEach(model.availableModes, id: \.self) { mode in
                         ModeEditor(mode: mode, model: model)
                     }
                 }
-                Section("Conflicts") {
+                CardSection("CONFLICTS") {
                     let rows = analysis.conflictRows()
                     if rows.isEmpty {
                         Text("No conflicts detected.").foregroundStyle(.secondary)
@@ -227,6 +289,7 @@ struct KeybindingsPanel: View {
             profileMessage = "Can't save profile: \(error)"
         }
     }
+
 
     private func color(_ severity: ConflictSeverity) -> Color {
         switch severity {
@@ -327,11 +390,13 @@ struct AboutPanel: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        SettingsForm("About") {
+        SettingsForm {
+        CardSection("SYSTEM") {
             KeyValueRow(key: "Server", value: model.serverVersionAndHash ?? "not reachable")
             KeyValueRow(key: "Config file", value: model.configUrl?.path(percentEncoded: false) ?? "—")
             KeyValueRow(key: "App", value: MacarchySettingsCoreInfo.version)
         }
+    }
     }
 }
 
@@ -341,7 +406,8 @@ struct PermissionsPanel: View {
     @StateObject private var permission = PermissionStatusModel()
 
     var body: some View {
-        SettingsForm("Accessibility") {
+        SettingsForm {
+        CardSection("ACCESSIBILITY PERMISSION") {
             switch permission.state {
                 case .granted(let count):
                     Label("macarchy is managing \(count) windows.", systemImage: "checkmark.circle.fill")
@@ -382,15 +448,18 @@ struct PermissionsPanel: View {
         }
         .task { await permission.refresh() }
     }
+    }
 }
 
 // MARK: Overlays (borders / bar / palette)
+
 
 struct OverlaysPanel: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        SettingsForm("Overlays") {
+        SettingsForm {
+        CardSection("FOCUS RING") {
             Toggle("Focus ring around focused window", isOn: model.binding(path: "borders.enabled", default: false))
             Stepper(
                 "Ring width: \(model.intValue(path: "borders.width") ?? 4)",
@@ -437,6 +506,7 @@ struct OverlaysPanel: View {
     }
 
     /// Enabling the bar also carves space: outer top gap raised to bar height + margin.
+    }
     private var barBinding: Binding<Bool> {
         Binding(
             get: { model.boolValue(path: "bar.enabled") ?? false },
@@ -454,65 +524,138 @@ struct OverlaysPanel: View {
     }
 }
 
-// MARK: Diff bar (draft-then-commit)
+// MARK: Diff bar (draft-then-commit, floating capsule)
 
 struct DiffBar: View {
     @ObservedObject var model: AppModel
+    @Environment(\.appTheme) private var theme
 
     var body: some View {
         if model.hasUnsavedChanges || model.saveError != nil {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(spacing: 10) {
                 if let error = model.saveError {
-                    Text(error).font(.callout).foregroundStyle(.red)
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(error)
+                            .font(.system(size: 11.5))
+                            .lineLimit(3)
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(.red)
+                    .padding(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.red.opacity(0.08))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .strokeBorder(Color.red.opacity(0.25), lineWidth: 1)
+                            )
+                    )
                 }
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(model.changes) { change in
-                            VStack(alignment: .leading) {
-                                Text(change.keyPath).font(.caption).foregroundStyle(.secondary)
-                                Text("\(change.oldValueToml ?? "—") → \(change.newValueToml)")
-                                    .font(.system(.caption, design: .monospaced))
+                HStack(spacing: 14) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(model.changes) { change in
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(change.keyPath)
+                                        .font(.system(size: 9.5, weight: .semibold))
+                                        .foregroundStyle(theme.secondaryText)
+                                        .lineLimit(1)
+                                    Text("\(change.oldValueToml ?? "—") → \(change.newValueToml)")
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundStyle(theme.primaryText)
+                                        .lineLimit(1)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(theme.secondaryText.opacity(0.09))
+                                )
                             }
-                            .padding(6)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary))
                         }
                     }
-                }
-                HStack {
-                    Button("Discard") { model.discard() }
-                        .accessibilityLabel("Discard changes")
-                    Spacer()
-                    Button("Save") { Task { await model.save() } }
-                        .keyboardShortcut(.defaultAction)
-                        .accessibilityLabel("Save changes")
+                    Button {
+                        model.discard()
+                    } label: {
+                        Text("Discard")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(theme.secondaryText)
+                    .accessibilityLabel("Discard changes")
+
+                    Button {
+                        Task { await model.save() }
+                    } label: {
+                        Text("Save")
+                            .font(.system(size: 12.5, weight: .bold))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 7)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(theme.accent)
+                            )
+                            .foregroundStyle(theme.accentText)
+                    }
+                    .buttonStyle(.plain)
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityLabel("Save changes")
                 }
             }
-            .padding(10)
-            .background(.bar)
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(theme.card)
+                    .shadow(color: Color.black.opacity(0.18), radius: 14, y: 4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(theme.cardBorder, lineWidth: 1)
+                    )
+            )
+            .padding(.horizontal, 16)
+            .padding(.bottom, 6)
         }
     }
 }
 
 // MARK: Shared scaffolding
 
-struct SettingsForm<Content: View>: View {
-    let title: String?
+/// Panels stack their content as a vertical list of premium cards.
+struct SettingsForm<SectionContent: View>: View {
+    @ViewBuilder var sections: SectionContent
+
+    init(@ViewBuilder sections: () -> SectionContent) {
+        self.sections = sections()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            sections
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// A labelled card section: "LABEL" over a rounded card.
+struct CardSection<Content: View>: View {
+    let label: String
     @ViewBuilder var content: Content
 
-    init(_ title: String? = nil, @ViewBuilder content: () -> Content) {
-        self.title = title
+    init(_ label: String, @ViewBuilder content: () -> Content) {
+        self.label = label
         self.content = content()
     }
 
     var body: some View {
-        Form {
-            if let title {
-                Section(title) { content }
-            } else {
-                content
+        VStack(alignment: .leading, spacing: 0) {
+            CardLabel(label)
+            PremiumCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    content
+                }
             }
         }
-        .formStyle(.grouped)
-        .frame(maxWidth: 640, alignment: .leading)
     }
 }

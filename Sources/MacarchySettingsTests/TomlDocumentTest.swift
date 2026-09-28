@@ -47,6 +47,19 @@ final class TomlDocumentTest: XCTestCase {
         XCTAssertTrue(doc.text.contains("gaps.inner.vertical = 12"))
     }
 
+    func testSetValueWritesIntoExistingTableSection() {
+        let tableForm = "start-at-login = true\n\n[bar]\nenabled = false\nheight = 28\n"
+        var doc = TomlDocument(text: tableForm)
+        XCTAssertTrue(doc.setValue(path: ["bar", "enabled"], valueToml: "true"))
+        XCTAssertEqual(doc.text, "start-at-login = true\n\n[bar]\nenabled = true\nheight = 28\n")
+
+        // Missing key inside an existing table appends there, not at top level.
+        let withTable = "[borders]\nenabled = true\n"
+        var doc2 = TomlDocument(text: withTable)
+        XCTAssertTrue(doc2.setValue(path: ["borders", "width"], valueToml: "6"))
+        XCTAssertEqual(doc2.text, "[borders]\nenabled = true\nwidth = 6\n")
+    }
+
     func testSetInDocumentWithoutTablesAppends() {
         var doc = TomlDocument(text: "a = 1")
         XCTAssertTrue(doc.setValue(path: ["b"], valueToml: "2"))

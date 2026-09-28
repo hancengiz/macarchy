@@ -378,7 +378,8 @@ func keybindingsProviderRows(bindings: [String: HotkeyBinding]) -> [OmarchyMenuR
                         // commands (layout, close, resize...) see a focused window.
                         try? await Task.sleep(for: .milliseconds(200))
                         for attempt in 0 ..< 3 {
-                            let exitCode = try await runLightSession(.hotkeyBinding, .checkServerIsEnabledOrDie()) { () throws -> Int32ExitCode in
+                            guard let sessionGuard = RunSessionGuard.isServerEnabled else { return } // paused server: ignore click
+                            let exitCode = try await runLightSession(.hotkeyBinding, sessionGuard) { () throws -> Int32ExitCode in
                                 await binding.commands.run(.defaultEnv, CmdIoImpl.emptyStdinIgnoringOut)
                             }
                             if exitCode.rawValue == 0 {

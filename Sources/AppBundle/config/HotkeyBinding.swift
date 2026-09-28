@@ -62,7 +62,8 @@ extension HotKey {
                         mode: activeMode,
                         binding: binding.descriptionWithKeyNotation,
                     ))
-                    try await runLightSession(.hotkeyBinding, .checkServerIsEnabledOrDie()) { () throws in
+                    guard let sessionGuard = RunSessionGuard.isServerEnabled else { return } // paused server: ignore hotkey instead of dying
+                    try await runLightSession(.hotkeyBinding, sessionGuard) { () throws in
                         _ = await config.modes[activeMode]?.bindings[binding.descriptionWithKeyCode]?.commands
                             .run(.defaultEnv, .emptyStdin)
                     }

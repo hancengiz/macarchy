@@ -138,6 +138,16 @@ def build_app(build_version=DEFAULT_BUILD_VERSION, identity_override=None, relea
         info.pop("SUPublicEDKey", None)
     with (contents / "Info.plist").open("wb") as file:
         plistlib.dump(info, file)
+    # Non-Apple certificates get no Team ID: without this, macOS refuses to
+    # load the embedded Sparkle framework at launch (library validation).
+    entitlements = destination.parent / "Macarchy.entitlements"
+    entitlements.write_text(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+        "<plist version=\"1.0\">\n<dict>\n"
+        "    <key>com.apple.security.cs.disable-library-validation</key>\n    <true/>\n"
+        "</dict>\n</plist>\n"
+    )
     identity, source = discover_identity(identity_override)
     if source == "adhoc":
         print(
@@ -148,6 +158,11 @@ def build_app(build_version=DEFAULT_BUILD_VERSION, identity_override=None, relea
     else:
         print(f"Signing with: {identity} ({source})")
     run("codesign", "--force", "--deep", "--sign", identity, str(destination))
+    if sparkle:
+        # Re-seal the app itself with the entitlement (inside-out order:
+        # entitlements apply to the main executable, not the frameworks).
+        run("codesign", "--force", "--options", "runtime",
+            "--entitlements", str(entitlements), "--sign", identity, str(destination))
     run("codesign", "--verify", "--deep", "--strict", str(destination))
     print(f"Built {destination}")
     return destination
