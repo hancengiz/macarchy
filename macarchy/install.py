@@ -93,7 +93,7 @@ def hotkeys(text):
     return "\n".join(lines) + "\n"
 
 
-def build_app(build_version=DEFAULT_BUILD_VERSION):
+def build_app(build_version=DEFAULT_BUILD_VERSION, identity_override=None):
     bash = shutil.which("bash", path="/opt/homebrew/bin:/usr/local/bin")
     if not bash:
         raise SystemExit("Install Bash 5 first: brew install bash")
@@ -122,7 +122,16 @@ def build_app(build_version=DEFAULT_BUILD_VERSION):
     }
     with (contents / "Info.plist").open("wb") as file:
         plistlib.dump(info, file)
-    run("codesign", "--force", "--deep", "--sign", codesign_identity(), str(destination))
+    identity, source = discover_identity(identity_override)
+    if source == "adhoc":
+        print(
+            "warning: no codesigning identity in the keychain; ad-hoc signing"
+            " means macOS will ask for the Accessibility grant again after this install",
+            file=sys.stderr,
+        )
+    else:
+        print(f"Signing with: {identity} ({source})")
+    run("codesign", "--force", "--deep", "--sign", identity, str(destination))
     run("codesign", "--verify", "--deep", "--strict", str(destination))
     print(f"Built {destination}")
     return destination
@@ -200,6 +209,10 @@ def main():
     parser.add_argument("--build-version", default=DEFAULT_BUILD_VERSION, help="App and CLI version to embed when building")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--restore", type=Path, help="Restore a backup directory printed during installation")
+    parser.add_argument(
+        "--identity",
+        help="codesigning identity to use ('-' for ad-hoc); default: discover from the keychain",
+    )
     args = parser.parse_args()
     home = Path.home()
     config = home / ".macarchy.toml"
@@ -232,7 +245,7 @@ def main():
         else:
             print(text)
         return
-    app = build_app(args.build_version) if args.build or args.build_only else None
+    app = build_app(args.build_version, args.identity) if args.build or args.build_only else None
     if args.build_only:
         return
     if args.profile_only and not (home / "Applications/macarchy.app/Contents/Helpers/macarchy").is_file():
