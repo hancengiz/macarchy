@@ -6,8 +6,10 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import tomllib
 
@@ -18,6 +20,37 @@ DEFAULT_BUILD_VERSION = "0.22.1"
 def run(*args, **kwargs):
     return subprocess.run(args, check=True, **kwargs)
 
+def parse_identities(text):
+    """Valid codesigning-identity names from `security find-identity -v -p codesigning`."""
+    names = []
+    for line in text.splitlines():
+        match = re.fullmatch(r'\s*\d+\)\s+[0-9A-Fa-f]+\s+"([^"]+)"', line)
+        if match:
+            names.append(match.group(1))
+    return names
+
+
+def pick_identity(names):
+    """Stable signing identity; ad-hoc ('-') only as a fallback the caller must warn about."""
+    if "aerospace-codesign-certificate" in names:
+        return "aerospace-codesign-certificate", "preferred"
+    for name in names:
+        if name.startswith("Developer ID Application:"):
+            return name, "developer-id"
+    if names:
+        return names[0], "named"
+    return "-", "adhoc"
+
+
+def discover_identity(override=None):
+    if override:
+        return override, "override"
+    output = subprocess.run(
+        ["security", "find-identity", "-v", "-p", "codesigning"],
+        capture_output=True,
+        text=True,
+    ).stdout
+    return pick_identity(parse_identities(output))
 
 def profile(leader=False):
     text = (ROOT / "docs/config-examples/omarchy.toml").read_text()

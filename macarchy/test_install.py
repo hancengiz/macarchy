@@ -5,9 +5,8 @@ from pathlib import Path
 import tempfile
 import tomllib
 import unittest
-from unittest.mock import patch
 
-import install
+from install import parse_identities, pick_identity
 
 
 class InstallerTest(unittest.TestCase):
@@ -61,6 +60,40 @@ class InstallerTest(unittest.TestCase):
                     install.main()
                 self.assertEqual(config.read_text(), "# previous config\n")
                 self.assertEqual((helper / "action").read_text(), "# previous helper\n")
+class ParseIdentitiesTest(unittest.TestCase):
+    def test_parses_named_identities_and_ignores_summary(self):
+        text = (
+            '  1) 2F4E08830C57875E0D91064A8E4E812842C6777F "KiwiDesk Local Signing"\n'
+            '  2) ABCDEF "Developer ID Application: Acme Inc (TEAM123)"\n'
+            '     2 valid identities found.\n'
+        )
+        self.assertEqual(
+            parse_identities(text),
+            ["KiwiDesk Local Signing", "Developer ID Application: Acme Inc (TEAM123)"],
+        )
+
+    def test_empty_output(self):
+        self.assertEqual(parse_identities(""), [])
+        self.assertEqual(parse_identities("     0 valid identities found.\n"), [])
+
+
+class PickIdentityTest(unittest.TestCase):
+    def test_prefers_documented_convention_name(self):
+        names = ["KiwiDesk Local Signing", "aerospace-codesign-certificate"]
+        self.assertEqual(pick_identity(names), ("aerospace-codesign-certificate", "preferred"))
+
+    def test_developer_id_over_arbitrary(self):
+        names = ["KiwiDesk Local Signing", "Developer ID Application: Acme Inc (T)"]
+        self.assertEqual(
+            pick_identity(names),
+            ("Developer ID Application: Acme Inc (T)", "developer-id"),
+        )
+
+    def test_first_named_fallback(self):
+        self.assertEqual(pick_identity(["KiwiDesk Local Signing"]), ("KiwiDesk Local Signing", "named"))
+
+    def test_adhoc_fallback(self):
+        self.assertEqual(pick_identity([]), ("-", "adhoc"))
 
     def test_upgrade_preserves_custom_config_and_replaces_bundle_cleanly(self):
         with tempfile.TemporaryDirectory() as directory:
