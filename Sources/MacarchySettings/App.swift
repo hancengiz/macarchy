@@ -137,20 +137,61 @@ struct GapsLayoutPanel: View {
     }
 }
 
-// MARK: Keybindings (read-only keycap catalog + conflict rows)
+// MARK: Keybindings (profiles + editable rows + conflict rows)
 
 struct KeybindingsPanel: View {
     @ObservedObject var model: AppModel
+    @State private var newProfileName = ""
+    @State private var isSavingProfile = false
+    @State private var profileMessage: String?
 
     var body: some View {
         let analysis = ShortcutConflictAnalysis(
-            configText: model.originalText,
+            configText: model.draftText,
             system: .live()
         )
+        let profiles = model.profileStore.list()
         return SettingsForm {
             if model.originalText.isEmpty {
                 Text(model.configLocationProblem ?? "No config loaded.").foregroundStyle(.secondary)
             } else {
+                Section("Profiles") {
+                    if profiles.isEmpty {
+                        Text("No saved profiles yet. Edit bindings below, then save them as a profile.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    ForEach(profiles, id: \.self) { name in
+                        HStack {
+                            Text(name)
+                            Spacer()
+                            Button("Load") {
+                                try? model.loadProfile(name: name)
+                                profileMessage = "Loaded '\(name)' into the draft — Save to apply."
+                            }
+                            Button("Delete", role: .destructive) {
+                                try? model.profileStore.delete(name)
+                                profileMessage = nil
+                            }
+                        }
+                    }
+                    if isSavingProfile {
+                        HStack {
+                            TextField("Profile name", text: $newProfileName)
+                                .onSubmit(saveProfile)
+                            Button("Save", action: saveProfile)
+                        }
+                    } else {
+                        Button("Save current bindings as profile…") { isSavingProfile = true }
+                    }
+                    if let profileMessage {
+                        Text(profileMessage).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Section("Bindings") {
+                    ForEach(model.availableModes, id: \.self) { mode in
+                        ModeEditor(mode: mode, model: model)
+                    }
+                }
                 Section("Conflicts") {
                     let rows = analysis.conflictRows()
                     if rows.isEmpty {
@@ -170,26 +211,20 @@ struct KeybindingsPanel: View {
                         .padding(.vertical, 2)
                     }
                 }
-                Section("Catalog") {
-                    ForEach(analysis.catalog(), id: \.mode) { modeCatalog in
-                        DisclosureGroup("mode.\(modeCatalog.mode)") {
-                            ForEach(modeCatalog.bindings, id: \.chord) { entry in
-                                HStack {
-                                    KeycapView(chord: entry.chord)
-                                    Spacer()
-                                    Text(entry.command.trimmingCharacters(in: CharacterSet(charactersIn: "'\"")))
-                                        .font(.system(.caption, design: .monospaced))
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                        .truncationMode(.middle)
-                                }
-                            }
-                        }
-                    }
-                    Text("Binding editing arrives with a later update.")
-                        .font(.footnote).foregroundStyle(.secondary)
-                }
             }
+        }
+    }
+
+    private func saveProfile() {
+        let name = newProfileName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        do {
+            try model.saveProfile(name: name)
+            newProfileName = ""
+            isSavingProfile = false
+            profileMessage = "Saved profile '\(name)'."
+        } catch {
+            profileMessage = "Can't save profile: \(error)"
         }
     }
 
@@ -198,6 +233,73 @@ struct KeybindingsPanel: View {
             case .dead, .reserved: .red
             case .dormant: .orange
             case .textEditing: .secondary.opacity(1)
+        }
+    }
+}
+
+private struct ModeEditor: View {
+    let mode: String
+    @ObservedObject var model: AppModel
+    @State private var newChord = ""
+    @State private var newCommand = ""
+
+    var body: some View {
+        DisclosureGroup("mode.\(mode)\(model.modeEdits[mode] != nil ? " •" : "")") {
+            let rows = model.bindingRows(mode: mode)
+            ForEach(rows) { row in
+                BindingRowEditor(mode: mode, row: row, model: model)
+            }
+            .onDelete { offsets in
+                var updated = model.bindingRows(mode: mode)
+                updated.remove(atOffsets: offsets)
+                model.setModeRows(updated, for: mode)
+            }
+            HStack {
+                TextField("chord, e.g. alt-h", text: $newChord)
+                    .frame(width: 150)
+                TextField("command, e.g. focus left", text: $newCommand)
+                Button("Add") {
+                    let chord = newChord.trimmingCharacters(in: .whitespaces)
+                    let command = newCommand.trimmingCharacters(in: .whitespaces)
+                    guard !chord.isEmpty, !command.isEmpty else { return }
+                    var updated = model.bindingRows(mode: mode)
+                    updated.removeAll { $0.chord == chord }
+                    updated.append(BindingRow(mode: mode, chord: chord, commandToml: TomlValue.format(string: command)))
+                    model.setModeRows(updated, for: mode)
+                    newChord = ""
+                    newCommand = ""
+                }
+            }
+            if model.modeEdits[mode] != nil {
+                HStack {
+                    Button("Revert mode.\(mode) to file") { model.revertMode(mode: mode) }
+                    Spacer()
+                }
+            }
+        }
+    }
+}
+
+private struct BindingRowEditor: View {
+    let mode: String
+    let row: BindingRow
+    let model: AppModel
+
+    var body: some View {
+        HStack {
+            KeycapView(chord: row.chord)
+                .frame(width: 150, alignment: .leading)
+            TextField("command", text: Binding(
+                get: { row.commandToml.trimmingCharacters(in: CharacterSet(charactersIn: "'\"")) },
+                set: { updated in
+                    var rows = model.bindingRows(mode: mode)
+                    if let index = rows.firstIndex(where: { $0.chord == row.chord }) {
+                        rows[index].commandToml = TomlValue.format(string: updated)
+                        model.setModeRows(rows, for: mode)
+                    }
+                }
+            ))
+            .font(.system(.caption, design: .monospaced))
         }
     }
 }

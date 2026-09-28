@@ -11,7 +11,9 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var configLocationProblem: String?
     @Published public private(set) var serverVersionAndHash: String?
     @Published public var saveError: String?
-
+    /// Staged full-replacement row sets per mode ("mode.main" → rows).
+    @Published public private(set) var modeEdits: [String: [BindingRow]] = [:]
+    public let profileStore = ProfileStore()
     public let loadText: () -> String?
     public let writeText: (String, URL) -> Void
     public let runServer: ([String]) async -> Result<ServerAnswer, ServerClientError>
@@ -26,6 +28,23 @@ public final class AppModel: ObservableObject {
         self.writeText = writeText ?? AppModel.writeLiveConfig
         self.runServer = runServer ?? { [server] in await server.run($0) }
     }
+}
+
+public struct BindingRow: Equatable, Identifiable {
+    public var id: String { "\(mode)|\(chord)" }
+    public let mode: String
+    public var chord: String
+    public var commandToml: String // raw TOML value, e.g. 'close' or ['mode main', 'close']
+
+    public init(mode: String, chord: String, commandToml: String) {
+        self.mode = mode
+        self.chord = chord
+        self.commandToml = commandToml
+    }
+}
+
+extension AppModel {
+
 
     public func load() async {
         switch ConfigFileLocation.live() {
@@ -43,18 +62,107 @@ public final class AppModel: ObservableObject {
                 originalText = ""
         }
         edits = [:]
+        modeEdits = [:]
         saveError = nil
         if case .success(let answer) = await runServer([]) {
             serverVersionAndHash = answer.serverVersionAndHash
         }
     }
 
-    public var draftText: String { ConfigDraft.apply(edits, to: originalText) }
-    public var changes: [ConfigChange] { ConfigDraft.diff(edits: edits, original: TomlDocument(text: originalText)) }
+    public var draftText: String {
+        var doc = TomlDocument(text: ConfigDraft.apply(edits, to: originalText))
+        for (mode, rows) in modeEdits {
+            _ = doc.replaceModeBindings(
+                mode: mode,
+                rows: rows.sorted { $0.chord < $1.chord }.map { ($0.chord, $0.commandToml) }
+            )
+        }
+        return doc.text
+    }
+
+    public var changes: [ConfigChange] {
+        var result = ConfigDraft.diff(edits: edits, original: TomlDocument(text: originalText))
+        let originalDoc = TomlDocument(text: originalText)
+        for (mode, rows) in modeEdits.sorted(by: { $0.key < $1.key }) {
+            let oldRows = originalDoc.bindings(mode: mode)
+            let newRows = rows.sorted { $0.chord < $1.chord }
+            if oldRows.map({ "\($0.key)=\($0.valueToml)" }) == newRows.map({ "\($0.chord)=\($0.commandToml)" }) { continue }
+            result.append(ConfigChange(
+                keyPath: "mode.\(mode).binding",
+                oldValueToml: "\(oldRows.count) bindings",
+                newValueToml: "\(newRows.count) bindings",
+            ))
+        }
+        return result
+    }
+
     public var hasUnsavedChanges: Bool { !changes.isEmpty }
 
     public func edit(_ path: String, toToml value: String) { edits[path] = value }
-    public func discard() { edits = [:]; saveError = nil }
+
+    /// Stage a full replacement of one mode's binding rows.
+    public func setModeRows(_ rows: [BindingRow], for mode: String) {
+        modeEdits[mode] = rows
+    }
+
+    public func revertMode(mode: String) {
+        modeEdits.removeValue(forKey: mode)
+    }
+
+    /// Rows shown in the editor: staged rows if any, else the original's.
+    public func bindingRows(mode: String) -> [BindingRow] {
+        if let staged = modeEdits[mode] { return staged }
+        return TomlDocument(text: originalText).bindings(mode: mode).map {
+            BindingRow(mode: mode, chord: $0.key, commandToml: $0.valueToml)
+        }
+    }
+
+    /// All modes present in the original config file.
+    public var availableModes: [String] {
+        TomlDocument(text: originalText).text
+            .split(separator: "\n")
+            .compactMap { line in
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                guard trimmed.hasPrefix("[mode."), trimmed.hasSuffix(".binding]") else { return nil }
+                return String(trimmed.dropFirst("[mode.".count).dropLast(".binding]".count))
+            }
+            .sorted()
+    }
+
+    /// Save the current draft keymap as a named profile.
+    public func saveProfile(name: String) throws {
+        let doc = TomlDocument(text: draftText)
+        var out = ""
+        for mode in availableModes {
+            let rows = doc.bindings(mode: mode)
+            guard !rows.isEmpty else { continue }
+            out += "[mode.\(mode).binding]\n"
+            out += rows.map { "\($0.key) = \($0.valueToml)" }.joined(separator: "\n") + "\n\n"
+        }
+        try profileStore.save(name, toml: out)
+    }
+
+    /// Stage every mode of a profile for the next Save (modes missing from
+    /// the original file are skipped — v1 edits existing sections only).
+    public func loadProfile(name: String) throws {
+        guard let toml = try profileStore.load(name) else { return }
+        let profileDoc = TomlDocument(text: toml)
+        for mode in availableModes {
+            let rows = profileDoc.bindings(mode: mode)
+            if !rows.isEmpty || TomlDocument(text: originalText).bindings(mode: mode).isEmpty == false {
+                setModeRows(
+                    rows.map { BindingRow(mode: mode, chord: $0.key, commandToml: $0.valueToml) },
+                    for: mode,
+                )
+            }
+        }
+    }
+
+    public func discard() {
+        edits = [:]
+        modeEdits = [:]
+        saveError = nil
+    }
 
     // Typed accessors: draft value if edited, else parsed original.
     public func boolValue(path: String) -> Bool? { rawValue(path: path).flatMap(TomlValue.parseBool) }
@@ -79,6 +187,7 @@ public final class AppModel: ObservableObject {
             case .success(let answer) where answer.exitCode == 0:
                 originalText = newText
                 edits = [:]
+                modeEdits = [:]
             case .success(let answer):
                 writeText(originalText, url) // rollback the file; server kept last-good config
                 _ = await runServer(["reload-config"])

@@ -88,6 +88,18 @@ public struct TomlDocument {
         return true
     }
 
+    /// Replace ALL rows of `[mode.<mode>.binding]` with the given rows.
+    /// The header and everything outside the section is preserved; rows
+    /// and inline comments inside are replaced wholesale.
+    @discardableResult
+    public mutating func replaceModeBindings(mode: String, rows: [(key: String, valueToml: String)]) -> Bool {
+        guard let range = sectionBody(mode: mode) else { return false }
+        lines.removeSubrange(range)
+        let rendered = rows.map { "\($0.key) = \($0.valueToml)" }
+        lines.insert(contentsOf: rendered, at: range.lowerBound)
+        return true
+    }
+
     // MARK: Line parsing
 
     private func keySideOrNil(ofLineAt index: Int) -> String? {
