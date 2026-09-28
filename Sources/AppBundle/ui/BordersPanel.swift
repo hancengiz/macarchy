@@ -37,38 +37,75 @@ func refreshBordersPanel() {
 }
 
 /// Focus ring overlay around the focused window. Rulings (donor borders.md, ported):
-/// no ring on fullscreen windows; geometry is read-only from the engine's
-/// `lastAppliedLayoutPhysicalRect` after every layout pass — the panel never
-/// writes and never observes AX itself; plain (non-mouse-modifier) window drags
-/// are not followed until the next engine pass.
+/// no ring on fullscreen windows. The layout pass after every engine event is
+/// authoritative (engine's `lastAppliedLayoutPhysicalRect`); while the user
+/// drags/resizes with the mouse, a global drag monitor re-reads the window's
+/// LIVE AX frame so the ring follows the window, not the stale layout slot.
 @MainActor
 final class BordersPanel: NSPanelHud {
     static let shared = BordersPanel()
 
     private let ringView = NSView()
+    private var lastRingFrame: CGRect = .zero
+    private var lastRingKey: String = ""
+    private var dragMonitor: Any?
+    private var isTrackingDrag = false
 
     override private init() {
         super.init()
         contentView = ringView
         ringView.wantsLayer = true
         hasShadow = false
+        dragMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDragged]) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.trackDrag()
+            }
+        }
     }
+
     func refresh() {
         guard let window = focus.windowOrNil, bordersShouldShow(config: config, window: window),
             let rect = window.lastAppliedLayoutPhysicalRect
         else {
+            lastRingFrame = .zero
+            lastRingKey = ""
             orderOut(nil)
             return
         }
+        applyRing(rect: rect.nsWindowFrame)
+    }
+
+    /// Live-follow during mouse drags: read the focused window's actual AX frame.
+    private func trackDrag() {
+        guard !isTrackingDrag, config.borders.enabled,
+            let window = focus.windowOrNil, window.isBound, !window.isFullscreen
+        else { return }
+        isTrackingDrag = true
+        Task.startUnstructured {
+            if let liveRect = try? await window.getAxRect(.nonCancellable) {
+                await MainActor.run {
+                    self.applyRing(rect: liveRect.nsWindowFrame)
+                }
+            }
+            self.isTrackingDrag = false
+        }
+    }
+
+    private func applyRing(rect windowFrame: CGRect) {
         let width = config.borders.width
-        ringView.layer?.borderColor = bordersRingColor(config.borders.color, paletteName: config.palette.name).cgColor
-        ringView.layer?.borderWidth = CGFloat(width)
-        ringView.layer?.cornerRadius = 6
-        setFrame(
-            bordersRingFrame(windowRect: rect.nsWindowFrame, width: width),
-            display: true,
-        )
-        orderFrontRegardless()
+        let color = bordersRingColor(config.borders.color, paletteName: config.palette.name)
+        let key = "\(windowFrame)|\(width)|\(color)"
+        let frame = bordersRingFrame(windowRect: windowFrame, width: width)
+        let frameChanged = frame != lastRingFrame || key != lastRingKey
+        if frameChanged {
+            ringView.layer?.borderColor = color.cgColor
+            ringView.layer?.borderWidth = CGFloat(width)
+            ringView.layer?.cornerRadius = 6
+            setFrame(frame, display: true)
+            orderFrontRegardless()
+            lastRingFrame = frame
+            lastRingKey = key
+        }
     }
 }
 
