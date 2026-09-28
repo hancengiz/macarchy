@@ -38,7 +38,7 @@ executables, packages the default configuration and resources, and signs
 in `--build-only` mode.
 
 The installer discovers any valid codesigning identity in your login keychain
-(`aerospace-codesign-certificate` first, then Developer ID Application, then
+(`macarchy-codesign` first, then Developer ID Application, then
 any other) and signs with it; pass `--identity <name>` to override. A stable
 identity keeps the Accessibility grant across rebuilds. With no identity it
 falls back to ad-hoc signing and warns — every reinstall then needs a fresh

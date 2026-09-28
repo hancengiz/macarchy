@@ -2,7 +2,7 @@ import Foundation
 
 /// Named shortcut profiles: whole-keymap snapshots (all `[mode.*.binding]`
 /// tables) stored as TOML files under `~/.config/macarchy/profiles/`.
-/// KiwiDesk-style layers, macarchy-shaped: a profile IS the full mode set.
+/// Layer-style profiles, macarchy-shaped: a profile IS the full mode set.
 public final class ProfileStore: @unchecked Sendable {
     public let directory: URL
 

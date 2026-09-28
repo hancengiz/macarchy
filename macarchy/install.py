@@ -24,7 +24,7 @@ def parse_identities(text):
     """Valid codesigning-identity names from `security find-identity -v -p codesigning`."""
     names = []
     for line in text.splitlines():
-        match = re.fullmatch(r'\s*\d+\)\s+[0-9A-Fa-f]+\s+"([^"]+)"', line)
+        match = re.fullmatch(r'\s*\d+\)\s+[0-9A-Fa-f]+\s+"([^"]+)".*', line)
         if match:
             names.append(match.group(1))
     return names
@@ -32,8 +32,9 @@ def parse_identities(text):
 
 def pick_identity(names):
     """Stable signing identity; ad-hoc ('-') only as a fallback the caller must warn about."""
-    if "aerospace-codesign-certificate" in names:
-        return "aerospace-codesign-certificate", "preferred"
+    for preferred in ("macarchy-codesign", "aerospace-codesign-certificate"):
+        if preferred in names:
+            return preferred, "preferred"
     for name in names:
         if name.startswith("Developer ID Application:"):
             return name, "developer-id"
