@@ -34,9 +34,10 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 struct MainSplitView: View {
     @ObservedObject var model: AppModel
     @State private var selection: SettingsSection = .appearance
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             List(SettingsSection.allCases, selection: $selection) { section in
                 Label(section.rawValue, systemImage: section.icon)
                     .tag(section)
@@ -122,30 +123,67 @@ struct GapsLayoutPanel: View {
     }
 }
 
-// MARK: Keybindings (read-only catalog in 1.3; editor lands with 1.4)
+// MARK: Keybindings (read-only keycap catalog + conflict rows)
 
 struct KeybindingsPanel: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        SettingsForm("Keybindings") {
+        let analysis = ShortcutConflictAnalysis(
+            configText: model.originalText,
+            system: .live()
+        )
+        return SettingsForm {
             if model.originalText.isEmpty {
                 Text(model.configLocationProblem ?? "No config loaded.").foregroundStyle(.secondary)
             } else {
-                let modes = ["main", "resize", "system", "macarchy-menu", "passthrough"]
-                ForEach(modes, id: \.self) { mode in
-                    let rows = TomlDocument(text: model.originalText).bindings(mode: mode)
-                    if !rows.isEmpty {
-                        DisclosureGroup("mode.\(mode)") {
-                            ForEach(rows, id: \.key) { row in
-                                KeyValueRow(key: row.key, value: row.valueToml)
+                Section("Conflicts") {
+                    let rows = analysis.conflictRows()
+                    if rows.isEmpty {
+                        Text("No conflicts detected.").foregroundStyle(.secondary)
+                    }
+                    ForEach(rows) { row in
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack {
+                                KeycapView(chord: row.chord, prominent: true)
+                                Spacer()
+                                Text("mode.\(row.mode)").font(.caption).foregroundStyle(.secondary)
+                            }
+                            Text(row.explanation)
+                                .font(.caption)
+                                .foregroundStyle(color(row.severity))
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+                Section("Catalog") {
+                    ForEach(analysis.catalog(), id: \.mode) { modeCatalog in
+                        DisclosureGroup("mode.\(modeCatalog.mode)") {
+                            ForEach(modeCatalog.bindings, id: \.chord) { entry in
+                                HStack {
+                                    KeycapView(chord: entry.chord)
+                                    Spacer()
+                                    Text(entry.command.trimmingCharacters(in: CharacterSet(charactersIn: "'\"")))
+                                        .font(.system(.caption, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                }
                             }
                         }
                     }
+                    Text("Binding editing arrives with a later update.")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
-                Text("Editing arrives with the shortcuts update (1.4).")
-                    .font(.footnote).foregroundStyle(.secondary)
             }
+        }
+    }
+
+    private func color(_ severity: ConflictSeverity) -> Color {
+        switch severity {
+            case .dead, .reserved: .red
+            case .dormant: .orange
+            case .textEditing: .secondary.opacity(1)
         }
     }
 }
@@ -223,17 +261,21 @@ struct DiffBar: View {
 // MARK: Shared scaffolding
 
 struct SettingsForm<Content: View>: View {
-    let title: String
+    let title: String?
     @ViewBuilder var content: Content
 
-    init(_ title: String, @ViewBuilder content: () -> Content) {
+    init(_ title: String? = nil, @ViewBuilder content: () -> Content) {
         self.title = title
         self.content = content()
     }
 
     var body: some View {
         Form {
-            Section(title) { content }
+            if let title {
+                Section(title) { content }
+            } else {
+                content
+            }
         }
         .formStyle(.grouped)
         .frame(maxWidth: 640, alignment: .leading)
