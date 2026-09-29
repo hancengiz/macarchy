@@ -52,6 +52,7 @@ let package = Package(
                 .product(name: "Sparkle", package: "Sparkle"),
                 .product(name: "TOMLDecoder", package: "TOMLDecoder"),
                 .target(name: "Common"),
+                .target(name: "MacarchySettingsCore"),
                 .target(name: "PrivateApi"),
             ],
             resources: [

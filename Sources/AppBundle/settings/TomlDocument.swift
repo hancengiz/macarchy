@@ -76,8 +76,21 @@ struct TomlDocument {
 
     func getValue(path: [String]) -> String? {
         let key = Self.normalizeKey(path.joined(separator: "."))
-        guard let index = lines.firstIndex(where: { Self.keySide(of: $0) == key }) else { return nil }
-        return Self.valueSide(of: lines[index])
+        if let index = lines.firstIndex(where: { Self.keySide(of: $0) == key }) {
+            return Self.valueSide(of: lines[index])
+        }
+        // Table form, mirroring setValue: [bar] enabled = true is read as
+        // ["bar", "enabled"]. Without this the settings UI sees every
+        // in-table key as absent and shows defaults instead of the file.
+        if path.count >= 2 {
+            let table = Self.normalizeKey(path.dropLast().joined(separator: "."))
+            let leaf = Self.normalizeKey(path.last!)
+            if let range = tableSectionRange(named: table),
+               let index = range.firstIndex(where: { keySideOrNil(ofLineAt: $0) == leaf }) {
+                return Self.valueSide(of: lines[index])
+            }
+        }
+        return nil
     }
 
     // MARK: Mode bindings

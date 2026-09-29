@@ -85,7 +85,7 @@ final class SettingsModel: ObservableObject {
         }
     }
 
-    var configUrl: URL? { configUrl }
+    var configUrl: URL? { try? ConfigPersistence.activeURL() }
 
     func load() {
         if let url = configUrl {
